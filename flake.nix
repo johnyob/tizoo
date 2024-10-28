@@ -54,6 +54,8 @@
             ocamlPackages.ocaml-lsp
             ocamlPackages.merlin
             ocamlPackages.merlin-lib
+            ocamlPackages.ocaml
+            ocamlPackages.dune
           ];
         };
       });

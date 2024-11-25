@@ -1,0 +1,6 @@
+(library
+ (name tizoo_unifier)
+ (public_name tizoo.unifier)
+ (libraries core tizoo.std)
+ (preprocess
+  (pps ppx_jane)))

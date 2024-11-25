@@ -1,0 +1,6 @@
+(library
+ (name tizoo_constraints)
+ (public_name tizoo.constraints)
+ (libraries core tizoo.std tizoo.unifier)
+ (preprocess
+  (pps ppx_jane)))

@@ -56,6 +56,9 @@
             ocamlPackages.merlin-lib
             ocamlPackages.ocaml
             ocamlPackages.dune
+
+            ocamlPackages.core
+            ocamlPackages.ppx_jane
           ];
         };
       });

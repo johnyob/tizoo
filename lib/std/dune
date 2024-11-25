@@ -1,0 +1,5 @@
+(library
+ (name tizoo_std)
+ (public_name tizoo.std)
+ (libraries core)
+ (preprocess (pps ppx_jane)))

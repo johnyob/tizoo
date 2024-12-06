@@ -1,9 +1,26 @@
 (* This module implements signature used for unification structures. *)
 
-module type S = sig
-  (** A structure defines the internal structure of terms in the unification
-      problem. *)
+module type Basic = sig
+  (** A structure defines the internal structure of terms in the unification problem. *)
   type 'a t [@@deriving sexp_of]
+end
+
+module type Traversable = sig
+  include Basic
+
+  (** [map t ~f] traverses [t], applying the transformation [f]. *)
+  val map : 'a t -> f:('a -> 'b) -> 'b t
+
+  (** [iter t ~f] traverses [t], executing [f] on each child. *)
+  val iter : 'a t -> f:('a -> unit) -> unit
+
+  (** [fold t ~f ~init] performs the computation of [f], traversing
+      over [t] with the initial accumulator value of [init]. *)
+  val fold : 'a t -> f:('a -> 'b -> 'b) -> init:'b -> 'b
+end
+
+module type Mergable = sig
+  include Basic
 
   (** ['a ctx] represents the arbitrary context used by [merge] *)
   type 'a ctx
@@ -26,14 +43,10 @@ module type S = sig
     -> 'a t
     -> 'a t
     -> 'a t
+end
 
-  (** [map t ~f] traverses [t], applying the transformation [f]. *)
-  val map : 'a t -> f:('a -> 'b) -> 'b t
-
-  (** [iter t ~f] traverses [t], executing [f] on each child. *)
-  val iter : 'a t -> f:('a -> unit) -> unit
-
-  (** [fold t ~f ~init] performs the computation of [f], traversing
-      over [t] with the initial accumulator value of [init]. *)
-  val fold : 'a t -> f:('a -> 'b -> 'b) -> init:'b -> 'b
+module type S = sig
+  include Basic
+  include Traversable with type 'a t := 'a t
+  include Mergable with type 'a t := 'a t
 end

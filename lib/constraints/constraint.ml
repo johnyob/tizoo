@@ -7,7 +7,7 @@ module Type = struct
     end)
 
   type t =
-    | Structure of t Structure.Ml.t
+    | Structure of t Structure.Former.t
     | Var of Var.t
   [@@deriving sexp]
 

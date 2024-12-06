@@ -141,3 +141,9 @@ let union t1 t2 ~f =
 ;;
 
 let same_class t1 t2 = phys_equal (root t1) (root t2)
+
+let is_root t =
+  match !t with
+  | Root _ -> true
+  | Inner _ -> false
+;;

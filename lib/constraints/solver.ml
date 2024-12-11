@@ -60,8 +60,8 @@ module State = struct
   let enter_region { gstate } = { gstate = G.enter ~state:gstate }
 
   let exit_region { gstate } ?root () =
-    let gstate, quantifier_insts, root = G.exit ~state:gstate ?root () in
-    { gstate }, quantifier_insts, root
+    let gstate, root = G.exit ~state:gstate ?root () in
+    { gstate }, root
   ;;
 end
 
@@ -82,7 +82,7 @@ exception Unsatisfiable
 
 let unify ~(state : State.t) gtype1 gtype2 =
   try G.unify ~state:state.gstate gtype1 gtype2 with
-  | G.U.Unify _ -> raise Unsatisfiable
+  | G.Unify.Unify _ -> raise Unsatisfiable
 ;;
 
 let rec solve : state:State.t -> env:Env.t -> C.t -> State.t =
@@ -118,12 +118,22 @@ let rec solve : state:State.t -> env:Env.t -> C.t -> State.t =
     let matchee = Env.find_type_var env matchee in
     let gclosure = gclosure_of_closure ~env closure in
     let case structure =
+      (* Enter region *)
+      let region_node =
+        Types.Region_tree.unsafe_max_by_level
+          (Type.region_exn ~here:[%here] matchee
+           :: List.map gclosure.variables ~f:(Type.region_exn ~here:[%here]))
+      in
+      let state = { State.gstate = { state.gstate with region_node } } in
+      (* Solve *)
       let env = Env.of_gclosure gclosure ~closure in
       let scruintee, env = match_type ~env structure in
       let cst = f scruintee in
-      ignore (solve ~state ~env cst : State.t);
+      let state = solve ~state ~env cst in
+      (* Exit region *)
+      G.update_and_generalize_region_node ~state:state.gstate region_node
     in
-    G.suspend { matchee; closure = gclosure; case };
+    G.suspend ~state:state.gstate { matchee; closure = gclosure; case };
     state
 
 and gclosure_of_closure ~env closure : _ G.Suspended_match.closure =
@@ -139,7 +149,7 @@ and gscheme_of_scheme ~state ~env { type_vars; in_; type_ } =
   in
   let type_ = gtype_of_type ~state ~env type_ in
   let state = solve ~state ~env in_ in
-  let state, _, scheme = State.exit_region state ~root:type_ () in
+  let state, scheme = State.exit_region state ~root:type_ () in
   state, Option.value_exn ~here:[%here] scheme
 ;;
 
@@ -147,9 +157,14 @@ let solve : C.t -> unit Or_error.t =
   fun cst ->
   let state = State.create () in
   try
+    G.reset_num_zombie_regions ();
     let state = State.enter_region state in
     let state = solve ~state ~env:Env.empty cst in
-    ignore (State.exit_region state () : State.t * Type.t list * Type.scheme option);
+    ignore (State.exit_region state () : State.t * Type.scheme option);
+    if !G.num_zombie_regions > 0
+    then (
+      print_s [%message "num_zombie_regions" (!G.num_zombie_regions : int)];
+      raise G.Cannot_unsuspend_generic);
     Ok ()
   with
   | exn -> Or_error.error_s [%message "Failed to solve constraint" (exn : exn)]

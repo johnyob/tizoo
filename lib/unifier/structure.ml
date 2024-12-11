@@ -40,6 +40,8 @@ module type Mergable = sig
     :  ctx:'a ctx
     -> create:('a t -> 'a)
     -> unify:('a -> 'a -> unit)
+    -> 'a 
+    -> 'a
     -> 'a t
     -> 'a t
     -> 'a t

@@ -32,7 +32,7 @@ module Former = struct
     | Constr (ts, _) -> List.fold_right ts ~f ~init
   ;;
 
-  let merge ~ctx:_ ~create:_ ~unify t1 t2 =
+  let merge ~ctx:_ ~create:_ ~unify _ _ t1 t2 =
     match t1, t2 with
     | Arrow (t11, t12), Arrow (t21, t22) ->
       unify t11 t21;

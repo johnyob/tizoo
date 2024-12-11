@@ -45,13 +45,13 @@ module Make (S : Structure.Basic) = struct
   open Type
 
   module Make_unify (M : Structure.Mergable with type 'a t := 'a S.t) = struct
-    let rec unify_exn ~ctx t1 t2 = Union_find.union ~f:(unify_desc ~ctx) t1 t2
+    let rec unify_exn ~ctx t1 t2 = Union_find.union ~f:(unify_desc ~ctx t1 t1) t1 t2
 
-    and unify_desc ~ctx desc1 desc2 =
-      { structure = unify_structure ~ctx desc1.structure desc2.structure }
+    and unify_desc ~ctx t1 t2 desc1 desc2 =
+      { structure = unify_structure ~ctx t1 t2 desc1.structure desc2.structure }
 
-    and unify_structure ~ctx structure1 structure2 =
-      M.merge ~ctx ~create:Type.create ~unify:(unify_exn ~ctx) structure1 structure2
+    and unify_structure ~ctx t1 t2 structure1 structure2 =
+      M.merge ~ctx ~create:Type.create ~unify:(unify_exn ~ctx) t1 t2 structure1 structure2
     ;;
 
     exception Unify of Type.t * Type.t

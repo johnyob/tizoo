@@ -66,7 +66,7 @@ module type S = sig
 
   module Path : sig
     (** A (linear) path in the region tree from the root to a given node *)
-    type 'a t
+    type 'a t [@@deriving sexp_of]
 
     (** [of_node n] returns a path from the region tree root to the node [n] *)
     val of_node : 'a node -> 'a t

@@ -51,6 +51,7 @@ module Make (R : T1_with_sexp_of) = struct
       ; compare_node_by_level : 'a node -> 'a node -> int
       ; mem : 'a node -> bool
       }
+    [@@deriving sexp_of]
 
     let of_node dst =
       let node_by_level = Hashtbl.create (module Level) in

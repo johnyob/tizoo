@@ -22,6 +22,81 @@ let%expect_test "Cannot unsuspend undetermined" =
   print_solve_result cst;
   [%expect
     {|
+    ("Suspend on"
+     (suspended_match.matchee
+      (Root
+       ((rank 0)
+        (value
+         ((structure
+           ((id 2) (guards ())
+            (inner (Var (Empty_one_or_more_handlers (((run <fun>))))))
+            (status (Instance <opaque>)))))))))
+     (guard 3))
+    ("Generalizing region"
+     (curr_region
+      ((region
+        ((status Alive)
+         (types
+          ((Root
+            ((rank 0)
+             (value
+              ((structure
+                ((id 2) (guards (3))
+                 (inner
+                  (Var
+                   (Empty_one_or_more_handlers (((run <fun>)) ((run <fun>))))))
+                 (status (Instance <opaque>))))))))))))
+       (node
+        ((id 1)
+         (parent
+          (((id 0) (parent ()) (level 0) (region ((status Alive) (types ()))))))
+         (level 1)
+         (region
+          ((status Alive)
+           (types
+            ((Root
+              ((rank 0)
+               (value
+                ((structure
+                  ((id 2) (guards (3))
+                   (inner
+                    (Var
+                     (Empty_one_or_more_handlers (((run <fun>)) ((run <fun>))))))
+                   (status (Instance <opaque>))))))))))))))
+       (path
+        ((dst
+          ((id 1)
+           (parent
+            (((id 0) (parent ()) (level 0) (region ((status Alive) (types ()))))))
+           (level 1)
+           (region
+            ((status Alive)
+             (types
+              ((Root
+                ((rank 0)
+                 (value
+                  ((structure
+                    ((id 2) (guards (3))
+                     (inner
+                      (Var
+                       (Empty_one_or_more_handlers (((run <fun>)) ((run <fun>))))))
+                     (status (Instance <opaque>))))))))))))))
+         (compare_node_by_level <fun>) (mem <fun>)))
+       (mem <fun>))))
+    Type is made partial generic
+    (id (id 3))
+    Generaizing alive region into zombie region
+    ("Zombie region"
+     (partial_generics
+      ((Root
+        ((rank 0)
+         (value
+          ((structure
+            ((id 2) (guards (3))
+             (inner
+              (Var (Empty_one_or_more_handlers (((run <fun>)) ((run <fun>))))))
+             (status (Partial_generic (region_node <opaque>) (instances ()))))))))))))
+    (num_zombie_regions (!G.num_zombie_regions 1))
     ("Constraint is unsatisfiable"
      (cst
       (Exists ((id 1) (name Type.Var))
@@ -48,6 +123,70 @@ let%expect_test "Can unsuspend determined" =
   print_solve_result cst;
   [%expect
     {|
+    ("Generalizing region"
+     (curr_region
+      ((region
+        ((status Alive)
+         (types
+          ((Root
+            ((rank 1)
+             (value
+              ((structure
+                ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                 (status (Instance <opaque>))))))))
+           (Inner
+            (Root
+             ((rank 1)
+              (value
+               ((structure
+                 ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                  (status (Instance <opaque>)))))))))))))
+       (node
+        ((id 1)
+         (parent
+          (((id 0) (parent ()) (level 0) (region ((status Alive) (types ()))))))
+         (level 1)
+         (region
+          ((status Alive)
+           (types
+            ((Root
+              ((rank 1)
+               (value
+                ((structure
+                  ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                   (status (Instance <opaque>))))))))
+             (Inner
+              (Root
+               ((rank 1)
+                (value
+                 ((structure
+                   ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                    (status (Instance <opaque>)))))))))))))))
+       (path
+        ((dst
+          ((id 1)
+           (parent
+            (((id 0) (parent ()) (level 0) (region ((status Alive) (types ()))))))
+           (level 1)
+           (region
+            ((status Alive)
+             (types
+              ((Root
+                ((rank 1)
+                 (value
+                  ((structure
+                    ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                     (status (Instance <opaque>))))))))
+               (Inner
+                (Root
+                 ((rank 1)
+                  (value
+                   ((structure
+                     ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                      (status (Instance <opaque>)))))))))))))))
+         (compare_node_by_level <fun>) (mem <fun>)))
+       (mem <fun>))))
+    Type made generic
     ("Constraint is satisfiable"
      (cst
       (Exists ((id 2) (name Type.Var))
@@ -71,6 +210,128 @@ let%expect_test "Cannot unsuspend circular dependencies" =
   print_solve_result cst;
   [%expect
     {|
+    ("Suspend on"
+     (suspended_match.matchee
+      (Root
+       ((rank 0)
+        (value
+         ((structure
+           ((id 2) (guards ())
+            (inner (Var (Empty_one_or_more_handlers (((run <fun>))))))
+            (status (Instance <opaque>)))))))))
+     (guard 4))
+    ("Suspend on"
+     (suspended_match.matchee
+      (Root
+       ((rank 0)
+        (value
+         ((structure
+           ((id 3) (guards (4))
+            (inner (Var (Empty_one_or_more_handlers (((run <fun>))))))
+            (status (Instance <opaque>)))))))))
+     (guard 5))
+    ("Generalizing region"
+     (curr_region
+      ((region
+        ((status Alive)
+         (types
+          ((Root
+            ((rank 0)
+             (value
+              ((structure
+                ((id 3) (guards (4))
+                 (inner
+                  (Var
+                   (Empty_one_or_more_handlers (((run <fun>)) ((run <fun>))))))
+                 (status (Instance <opaque>))))))))
+           (Root
+            ((rank 0)
+             (value
+              ((structure
+                ((id 2) (guards (5))
+                 (inner
+                  (Var
+                   (Empty_one_or_more_handlers (((run <fun>)) ((run <fun>))))))
+                 (status (Instance <opaque>))))))))))))
+       (node
+        ((id 1)
+         (parent
+          (((id 0) (parent ()) (level 0) (region ((status Alive) (types ()))))))
+         (level 1)
+         (region
+          ((status Alive)
+           (types
+            ((Root
+              ((rank 0)
+               (value
+                ((structure
+                  ((id 3) (guards (4))
+                   (inner
+                    (Var
+                     (Empty_one_or_more_handlers (((run <fun>)) ((run <fun>))))))
+                   (status (Instance <opaque>))))))))
+             (Root
+              ((rank 0)
+               (value
+                ((structure
+                  ((id 2) (guards (5))
+                   (inner
+                    (Var
+                     (Empty_one_or_more_handlers (((run <fun>)) ((run <fun>))))))
+                   (status (Instance <opaque>))))))))))))))
+       (path
+        ((dst
+          ((id 1)
+           (parent
+            (((id 0) (parent ()) (level 0) (region ((status Alive) (types ()))))))
+           (level 1)
+           (region
+            ((status Alive)
+             (types
+              ((Root
+                ((rank 0)
+                 (value
+                  ((structure
+                    ((id 3) (guards (4))
+                     (inner
+                      (Var
+                       (Empty_one_or_more_handlers (((run <fun>)) ((run <fun>))))))
+                     (status (Instance <opaque>))))))))
+               (Root
+                ((rank 0)
+                 (value
+                  ((structure
+                    ((id 2) (guards (5))
+                     (inner
+                      (Var
+                       (Empty_one_or_more_handlers (((run <fun>)) ((run <fun>))))))
+                     (status (Instance <opaque>))))))))))))))
+         (compare_node_by_level <fun>) (mem <fun>)))
+       (mem <fun>))))
+    Type is made partial generic
+    (id (id 4))
+    Type is made partial generic
+    (id (id 5))
+    Generaizing alive region into zombie region
+    ("Zombie region"
+     (partial_generics
+      ((Root
+        ((rank 0)
+         (value
+          ((structure
+            ((id 3) (guards (4))
+             (inner
+              (Var (Empty_one_or_more_handlers (((run <fun>)) ((run <fun>))))))
+             (status (Partial_generic (region_node <opaque>) (instances ())))))))))
+       (Root
+        ((rank 0)
+         (value
+          ((structure
+            ((id 2) (guards (5))
+             (inner
+              (Var (Empty_one_or_more_handlers (((run <fun>)) ((run <fun>))))))
+             (status (Partial_generic (region_node <opaque>) (instances ()))))))))))))
+    (num_zombie_regions (!G.num_zombie_regions 1))
     ("Constraint is unsatisfiable"
      (cst
       (Exists ((id 3) (name Type.Var))
@@ -103,6 +364,110 @@ let%expect_test "Can unsuspend topological dependencies" =
   print_solve_result cst;
   [%expect
     {|
+    ("Generalizing region"
+     (curr_region
+      ((region
+        ((status Alive)
+         (types
+          ((Root
+            ((rank 1)
+             (value
+              ((structure
+                ((id 3) (guards ()) (inner (Structure (Constr () int)))
+                 (status (Instance <opaque>))))))))
+           (Root
+            ((rank 1)
+             (value
+              ((structure
+                ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                 (status (Instance <opaque>))))))))
+           (Inner
+            (Root
+             ((rank 1)
+              (value
+               ((structure
+                 ((id 3) (guards ()) (inner (Structure (Constr () int)))
+                  (status (Instance <opaque>)))))))))
+           (Inner
+            (Root
+             ((rank 1)
+              (value
+               ((structure
+                 ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                  (status (Instance <opaque>)))))))))))))
+       (node
+        ((id 1)
+         (parent
+          (((id 0) (parent ()) (level 0) (region ((status Alive) (types ()))))))
+         (level 1)
+         (region
+          ((status Alive)
+           (types
+            ((Root
+              ((rank 1)
+               (value
+                ((structure
+                  ((id 3) (guards ()) (inner (Structure (Constr () int)))
+                   (status (Instance <opaque>))))))))
+             (Root
+              ((rank 1)
+               (value
+                ((structure
+                  ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                   (status (Instance <opaque>))))))))
+             (Inner
+              (Root
+               ((rank 1)
+                (value
+                 ((structure
+                   ((id 3) (guards ()) (inner (Structure (Constr () int)))
+                    (status (Instance <opaque>)))))))))
+             (Inner
+              (Root
+               ((rank 1)
+                (value
+                 ((structure
+                   ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                    (status (Instance <opaque>)))))))))))))))
+       (path
+        ((dst
+          ((id 1)
+           (parent
+            (((id 0) (parent ()) (level 0) (region ((status Alive) (types ()))))))
+           (level 1)
+           (region
+            ((status Alive)
+             (types
+              ((Root
+                ((rank 1)
+                 (value
+                  ((structure
+                    ((id 3) (guards ()) (inner (Structure (Constr () int)))
+                     (status (Instance <opaque>))))))))
+               (Root
+                ((rank 1)
+                 (value
+                  ((structure
+                    ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                     (status (Instance <opaque>))))))))
+               (Inner
+                (Root
+                 ((rank 1)
+                  (value
+                   ((structure
+                     ((id 3) (guards ()) (inner (Structure (Constr () int)))
+                      (status (Instance <opaque>)))))))))
+               (Inner
+                (Root
+                 ((rank 1)
+                  (value
+                   ((structure
+                     ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                      (status (Instance <opaque>)))))))))))))))
+         (compare_node_by_level <fun>) (mem <fun>)))
+       (mem <fun>))))
+    Type made generic
+    Type made generic
     ("Constraint is satisfiable"
      (cst
       (Exists ((id 5) (name Type.Var))
@@ -135,6 +500,78 @@ let%expect_test "Can unsuspend with cvar in closure" =
   print_solve_result cst;
   [%expect
     {|
+    ("Generalizing region"
+     (curr_region
+      ((region ((status Alive) (types ())))
+       (node
+        ((id 4)
+         (parent
+          (((id 1)
+            (parent
+             (((id 0) (parent ()) (level 0) (region ((status Alive) (types ()))))))
+            (level 1)
+            (region
+             ((status Alive)
+              (types
+               ((Root
+                 ((rank 0)
+                  (value
+                   ((structure
+                     ((id 3) (guards ()) (inner (Var Empty))
+                      (status (Instance <opaque>))))))))
+                (Root
+                 ((rank 0)
+                  (value
+                   ((structure
+                     ((id 2) (guards ()) (inner (Var Empty))
+                      (status (Instance <opaque>)))))))))))))))
+         (level 2) (region ((status Alive) (types ())))))
+       (path
+        ((dst
+          ((id 4)
+           (parent
+            (((id 1)
+              (parent
+               (((id 0) (parent ()) (level 0)
+                 (region ((status Alive) (types ()))))))
+              (level 1)
+              (region
+               ((status Alive)
+                (types
+                 ((Root
+                   ((rank 0)
+                    (value
+                     ((structure
+                       ((id 3) (guards ()) (inner (Var Empty))
+                        (status (Instance <opaque>))))))))
+                  (Root
+                   ((rank 0)
+                    (value
+                     ((structure
+                       ((id 2) (guards ()) (inner (Var Empty))
+                        (status (Instance <opaque>)))))))))))))))
+           (level 2) (region ((status Alive) (types ())))))
+         (compare_node_by_level <fun>) (mem <fun>)))
+       (mem <fun>))))
+    ("Suspend on"
+     (suspended_match.matchee
+      (Root
+       ((rank 0)
+        (value
+         ((structure
+           ((id 2) (guards ())
+            (inner (Var (Empty_one_or_more_handlers (((run <fun>))))))
+            (status (Instance <opaque>)))))))))
+     (guard 5))
+    svar filled and handlers fired
+    ("Removing guard"
+     (t
+      (Root
+       ((rank 0)
+        (value
+         ((structure
+           ((id 3) (guards (5)) (inner (Var Empty)) (status (Instance <opaque>)))))))))
+     (guard 5))
     ("Constraint is unsatisfiable"
      (cst
       (Exists ((id 7) (name Type.Var))
@@ -181,7 +618,2110 @@ let%expect_test "Partial generic is still generic" =
   in
   print_solve_result cst;
   [%expect {|
-    ("Constraint is unsatisfiable"
+    ("Suspend on"
+     (suspended_match.matchee
+      (Root
+       ((rank 0)
+        (value
+         ((structure
+           ((id 2) (guards ())
+            (inner (Var (Empty_one_or_more_handlers (((run <fun>))))))
+            (status (Instance <opaque>)))))))))
+     (guard 5))
+    ("Generalizing region"
+     (curr_region
+      ((region
+        ((status Alive)
+         (types
+          ((Root
+            ((rank 0)
+             (value
+              ((structure
+                ((id 4) (guards (5)) (inner (Var Empty))
+                 (status (Instance <opaque>))))))))))))
+       (node
+        ((id 3)
+         (parent
+          (((id 1)
+            (parent
+             (((id 0) (parent ()) (level 0) (region ((status Alive) (types ()))))))
+            (level 1)
+            (region
+             ((status Alive)
+              (types
+               ((Root
+                 ((rank 0)
+                  (value
+                   ((structure
+                     ((id 2) (guards ())
+                      (inner
+                       (Var
+                        (Empty_one_or_more_handlers
+                         (((run <fun>)) ((run <fun>))))))
+                      (status (Instance <opaque>)))))))))))))))
+         (level 2)
+         (region
+          ((status Alive)
+           (types
+            ((Root
+              ((rank 0)
+               (value
+                ((structure
+                  ((id 4) (guards (5)) (inner (Var Empty))
+                   (status (Instance <opaque>))))))))))))))
+       (path
+        ((dst
+          ((id 3)
+           (parent
+            (((id 1)
+              (parent
+               (((id 0) (parent ()) (level 0)
+                 (region ((status Alive) (types ()))))))
+              (level 1)
+              (region
+               ((status Alive)
+                (types
+                 ((Root
+                   ((rank 0)
+                    (value
+                     ((structure
+                       ((id 2) (guards ())
+                        (inner
+                         (Var
+                          (Empty_one_or_more_handlers
+                           (((run <fun>)) ((run <fun>))))))
+                        (status (Instance <opaque>)))))))))))))))
+           (level 2)
+           (region
+            ((status Alive)
+             (types
+              ((Root
+                ((rank 0)
+                 (value
+                  ((structure
+                    ((id 4) (guards (5)) (inner (Var Empty))
+                     (status (Instance <opaque>))))))))))))))
+         (compare_node_by_level <fun>) (mem <fun>)))
+       (mem <fun>))))
+    Type is made partial generic
+    (id (id 5))
+    Generaizing alive region into zombie region
+    ("Zombie region"
+     (partial_generics
+      ((Root
+        ((rank 0)
+         (value
+          ((structure
+            ((id 4) (guards (5)) (inner (Var Empty))
+             (status (Partial_generic (region_node <opaque>) (instances ()))))))))))))
+    svar filled and handlers fired
+    ("Removing guard"
+     (t
+      (Root
+       ((rank 0)
+        (value
+         ((structure
+           ((id 4) (guards (5)) (inner (Var Empty))
+            (status
+             (Partial_generic (region_node <opaque>)
+              (instances
+               ((4
+                 (Inner
+                  (Root
+                   ((rank 1)
+                    (value
+                     ((structure
+                       ((id 13) (guards (4))
+                        (inner
+                         (Structure
+                          (Arrow
+                           (Root
+                            ((rank 0)
+                             (value
+                              ((structure
+                                ((id 11) (guards ())
+                                 (inner (Structure (Constr () string)))
+                                 (status (Instance <opaque>))))))))
+                           (Root
+                            ((rank 0)
+                             (value
+                              ((structure
+                                ((id 10) (guards ())
+                                 (inner (Structure (Constr () string)))
+                                 (status (Instance <opaque>)))))))))))
+                        (status (Instance <opaque>))))))))))
+                (4
+                 (Inner
+                  (Root
+                   ((rank 1)
+                    (value
+                     ((structure
+                       ((id 9) (guards (4))
+                        (inner
+                         (Structure
+                          (Arrow
+                           (Root
+                            ((rank 0)
+                             (value
+                              ((structure
+                                ((id 7) (guards ())
+                                 (inner (Structure (Constr () int)))
+                                 (status (Instance <opaque>))))))))
+                           (Root
+                            ((rank 0)
+                             (value
+                              ((structure
+                                ((id 6) (guards ())
+                                 (inner (Structure (Constr () int)))
+                                 (status (Instance <opaque>)))))))))))
+                        (status (Instance <opaque>)))))))))))))))))))))
+     (guard 5))
+    ("Generalizing region"
+     (curr_region
+      ((region
+        ((status Zombie)
+         (types
+          ((Root
+            ((rank 0)
+             (value
+              ((structure
+                ((id 4) (guards ()) (inner (Var Empty))
+                 (status
+                  (Partial_generic (region_node <opaque>)
+                   (instances
+                    ((4
+                      (Inner
+                       (Root
+                        ((rank 1)
+                         (value
+                          ((structure
+                            ((id 13) (guards (4))
+                             (inner
+                              (Structure
+                               (Arrow
+                                (Root
+                                 ((rank 0)
+                                  (value
+                                   ((structure
+                                     ((id 11) (guards ())
+                                      (inner (Structure (Constr () string)))
+                                      (status (Instance <opaque>))))))))
+                                (Root
+                                 ((rank 0)
+                                  (value
+                                   ((structure
+                                     ((id 10) (guards ())
+                                      (inner (Structure (Constr () string)))
+                                      (status (Instance <opaque>)))))))))))
+                             (status (Instance <opaque>))))))))))
+                     (4
+                      (Inner
+                       (Root
+                        ((rank 1)
+                         (value
+                          ((structure
+                            ((id 9) (guards (4))
+                             (inner
+                              (Structure
+                               (Arrow
+                                (Root
+                                 ((rank 0)
+                                  (value
+                                   ((structure
+                                     ((id 7) (guards ())
+                                      (inner (Structure (Constr () int)))
+                                      (status (Instance <opaque>))))))))
+                                (Root
+                                 ((rank 0)
+                                  (value
+                                   ((structure
+                                     ((id 6) (guards ())
+                                      (inner (Structure (Constr () int)))
+                                      (status (Instance <opaque>)))))))))))
+                             (status (Instance <opaque>))))))))))))))))))))))))
+       (node
+        ((id 3)
+         (parent
+          (((id 1)
+            (parent
+             (((id 0) (parent ()) (level 0) (region ((status Alive) (types ()))))))
+            (level 1)
+            (region
+             ((status Alive)
+              (types
+               ((Root
+                 ((rank 1)
+                  (value
+                   ((structure
+                     ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                      (status (Instance <opaque>))))))))
+                (Inner
+                 (Root
+                  ((rank 1)
+                   (value
+                    ((structure
+                      ((id 13) (guards (4))
+                       (inner
+                        (Structure
+                         (Arrow
+                          (Root
+                           ((rank 0)
+                            (value
+                             ((structure
+                               ((id 11) (guards ())
+                                (inner (Structure (Constr () string)))
+                                (status (Instance <opaque>))))))))
+                          (Root
+                           ((rank 0)
+                            (value
+                             ((structure
+                               ((id 10) (guards ())
+                                (inner (Structure (Constr () string)))
+                                (status (Instance <opaque>)))))))))))
+                       (status (Instance <opaque>)))))))))
+                (Root
+                 ((rank 1)
+                  (value
+                   ((structure
+                     ((id 13) (guards (4))
+                      (inner
+                       (Structure
+                        (Arrow
+                         (Root
+                          ((rank 0)
+                           (value
+                            ((structure
+                              ((id 11) (guards ())
+                               (inner (Structure (Constr () string)))
+                               (status (Instance <opaque>))))))))
+                         (Root
+                          ((rank 0)
+                           (value
+                            ((structure
+                              ((id 10) (guards ())
+                               (inner (Structure (Constr () string)))
+                               (status (Instance <opaque>)))))))))))
+                      (status (Instance <opaque>))))))))
+                (Root
+                 ((rank 0)
+                  (value
+                   ((structure
+                     ((id 11) (guards ()) (inner (Structure (Constr () string)))
+                      (status (Instance <opaque>))))))))
+                (Root
+                 ((rank 0)
+                  (value
+                   ((structure
+                     ((id 10) (guards ()) (inner (Structure (Constr () string)))
+                      (status (Instance <opaque>))))))))
+                (Inner
+                 (Root
+                  ((rank 1)
+                   (value
+                    ((structure
+                      ((id 9) (guards (4))
+                       (inner
+                        (Structure
+                         (Arrow
+                          (Root
+                           ((rank 0)
+                            (value
+                             ((structure
+                               ((id 7) (guards ())
+                                (inner (Structure (Constr () int)))
+                                (status (Instance <opaque>))))))))
+                          (Root
+                           ((rank 0)
+                            (value
+                             ((structure
+                               ((id 6) (guards ())
+                                (inner (Structure (Constr () int)))
+                                (status (Instance <opaque>)))))))))))
+                       (status (Instance <opaque>)))))))))
+                (Root
+                 ((rank 1)
+                  (value
+                   ((structure
+                     ((id 9) (guards (4))
+                      (inner
+                       (Structure
+                        (Arrow
+                         (Root
+                          ((rank 0)
+                           (value
+                            ((structure
+                              ((id 7) (guards ())
+                               (inner (Structure (Constr () int)))
+                               (status (Instance <opaque>))))))))
+                         (Root
+                          ((rank 0)
+                           (value
+                            ((structure
+                              ((id 6) (guards ())
+                               (inner (Structure (Constr () int)))
+                               (status (Instance <opaque>)))))))))))
+                      (status (Instance <opaque>))))))))
+                (Root
+                 ((rank 0)
+                  (value
+                   ((structure
+                     ((id 7) (guards ()) (inner (Structure (Constr () int)))
+                      (status (Instance <opaque>))))))))
+                (Root
+                 ((rank 0)
+                  (value
+                   ((structure
+                     ((id 6) (guards ()) (inner (Structure (Constr () int)))
+                      (status (Instance <opaque>))))))))
+                (Inner
+                 (Root
+                  ((rank 1)
+                   (value
+                    ((structure
+                      ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                       (status (Instance <opaque>))))))))))))))))
+         (level 2)
+         (region
+          ((status Zombie)
+           (types
+            ((Root
+              ((rank 0)
+               (value
+                ((structure
+                  ((id 4) (guards ()) (inner (Var Empty))
+                   (status
+                    (Partial_generic (region_node <opaque>)
+                     (instances
+                      ((4
+                        (Inner
+                         (Root
+                          ((rank 1)
+                           (value
+                            ((structure
+                              ((id 13) (guards (4))
+                               (inner
+                                (Structure
+                                 (Arrow
+                                  (Root
+                                   ((rank 0)
+                                    (value
+                                     ((structure
+                                       ((id 11) (guards ())
+                                        (inner (Structure (Constr () string)))
+                                        (status (Instance <opaque>))))))))
+                                  (Root
+                                   ((rank 0)
+                                    (value
+                                     ((structure
+                                       ((id 10) (guards ())
+                                        (inner (Structure (Constr () string)))
+                                        (status (Instance <opaque>)))))))))))
+                               (status (Instance <opaque>))))))))))
+                       (4
+                        (Inner
+                         (Root
+                          ((rank 1)
+                           (value
+                            ((structure
+                              ((id 9) (guards (4))
+                               (inner
+                                (Structure
+                                 (Arrow
+                                  (Root
+                                   ((rank 0)
+                                    (value
+                                     ((structure
+                                       ((id 7) (guards ())
+                                        (inner (Structure (Constr () int)))
+                                        (status (Instance <opaque>))))))))
+                                  (Root
+                                   ((rank 0)
+                                    (value
+                                     ((structure
+                                       ((id 6) (guards ())
+                                        (inner (Structure (Constr () int)))
+                                        (status (Instance <opaque>)))))))))))
+                               (status (Instance <opaque>))))))))))))))))))))))))))
+       (path
+        ((dst
+          ((id 3)
+           (parent
+            (((id 1)
+              (parent
+               (((id 0) (parent ()) (level 0)
+                 (region ((status Alive) (types ()))))))
+              (level 1)
+              (region
+               ((status Alive)
+                (types
+                 ((Root
+                   ((rank 1)
+                    (value
+                     ((structure
+                       ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                        (status (Instance <opaque>))))))))
+                  (Inner
+                   (Root
+                    ((rank 1)
+                     (value
+                      ((structure
+                        ((id 13) (guards (4))
+                         (inner
+                          (Structure
+                           (Arrow
+                            (Root
+                             ((rank 0)
+                              (value
+                               ((structure
+                                 ((id 11) (guards ())
+                                  (inner (Structure (Constr () string)))
+                                  (status (Instance <opaque>))))))))
+                            (Root
+                             ((rank 0)
+                              (value
+                               ((structure
+                                 ((id 10) (guards ())
+                                  (inner (Structure (Constr () string)))
+                                  (status (Instance <opaque>)))))))))))
+                         (status (Instance <opaque>)))))))))
+                  (Root
+                   ((rank 1)
+                    (value
+                     ((structure
+                       ((id 13) (guards (4))
+                        (inner
+                         (Structure
+                          (Arrow
+                           (Root
+                            ((rank 0)
+                             (value
+                              ((structure
+                                ((id 11) (guards ())
+                                 (inner (Structure (Constr () string)))
+                                 (status (Instance <opaque>))))))))
+                           (Root
+                            ((rank 0)
+                             (value
+                              ((structure
+                                ((id 10) (guards ())
+                                 (inner (Structure (Constr () string)))
+                                 (status (Instance <opaque>)))))))))))
+                        (status (Instance <opaque>))))))))
+                  (Root
+                   ((rank 0)
+                    (value
+                     ((structure
+                       ((id 11) (guards ())
+                        (inner (Structure (Constr () string)))
+                        (status (Instance <opaque>))))))))
+                  (Root
+                   ((rank 0)
+                    (value
+                     ((structure
+                       ((id 10) (guards ())
+                        (inner (Structure (Constr () string)))
+                        (status (Instance <opaque>))))))))
+                  (Inner
+                   (Root
+                    ((rank 1)
+                     (value
+                      ((structure
+                        ((id 9) (guards (4))
+                         (inner
+                          (Structure
+                           (Arrow
+                            (Root
+                             ((rank 0)
+                              (value
+                               ((structure
+                                 ((id 7) (guards ())
+                                  (inner (Structure (Constr () int)))
+                                  (status (Instance <opaque>))))))))
+                            (Root
+                             ((rank 0)
+                              (value
+                               ((structure
+                                 ((id 6) (guards ())
+                                  (inner (Structure (Constr () int)))
+                                  (status (Instance <opaque>)))))))))))
+                         (status (Instance <opaque>)))))))))
+                  (Root
+                   ((rank 1)
+                    (value
+                     ((structure
+                       ((id 9) (guards (4))
+                        (inner
+                         (Structure
+                          (Arrow
+                           (Root
+                            ((rank 0)
+                             (value
+                              ((structure
+                                ((id 7) (guards ())
+                                 (inner (Structure (Constr () int)))
+                                 (status (Instance <opaque>))))))))
+                           (Root
+                            ((rank 0)
+                             (value
+                              ((structure
+                                ((id 6) (guards ())
+                                 (inner (Structure (Constr () int)))
+                                 (status (Instance <opaque>)))))))))))
+                        (status (Instance <opaque>))))))))
+                  (Root
+                   ((rank 0)
+                    (value
+                     ((structure
+                       ((id 7) (guards ()) (inner (Structure (Constr () int)))
+                        (status (Instance <opaque>))))))))
+                  (Root
+                   ((rank 0)
+                    (value
+                     ((structure
+                       ((id 6) (guards ()) (inner (Structure (Constr () int)))
+                        (status (Instance <opaque>))))))))
+                  (Inner
+                   (Root
+                    ((rank 1)
+                     (value
+                      ((structure
+                        ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                         (status (Instance <opaque>))))))))))))))))
+           (level 2)
+           (region
+            ((status Zombie)
+             (types
+              ((Root
+                ((rank 0)
+                 (value
+                  ((structure
+                    ((id 4) (guards ()) (inner (Var Empty))
+                     (status
+                      (Partial_generic (region_node <opaque>)
+                       (instances
+                        ((4
+                          (Inner
+                           (Root
+                            ((rank 1)
+                             (value
+                              ((structure
+                                ((id 13) (guards (4))
+                                 (inner
+                                  (Structure
+                                   (Arrow
+                                    (Root
+                                     ((rank 0)
+                                      (value
+                                       ((structure
+                                         ((id 11) (guards ())
+                                          (inner (Structure (Constr () string)))
+                                          (status (Instance <opaque>))))))))
+                                    (Root
+                                     ((rank 0)
+                                      (value
+                                       ((structure
+                                         ((id 10) (guards ())
+                                          (inner (Structure (Constr () string)))
+                                          (status (Instance <opaque>)))))))))))
+                                 (status (Instance <opaque>))))))))))
+                         (4
+                          (Inner
+                           (Root
+                            ((rank 1)
+                             (value
+                              ((structure
+                                ((id 9) (guards (4))
+                                 (inner
+                                  (Structure
+                                   (Arrow
+                                    (Root
+                                     ((rank 0)
+                                      (value
+                                       ((structure
+                                         ((id 7) (guards ())
+                                          (inner (Structure (Constr () int)))
+                                          (status (Instance <opaque>))))))))
+                                    (Root
+                                     ((rank 0)
+                                      (value
+                                       ((structure
+                                         ((id 6) (guards ())
+                                          (inner (Structure (Constr () int)))
+                                          (status (Instance <opaque>)))))))))))
+                                 (status (Instance <opaque>))))))))))))))))))))))))))
+         (compare_node_by_level <fun>) (mem <fun>)))
+       (mem <fun>))))
+    ("Generalizing region"
+     (curr_region
+      ((region
+        ((status Zombie)
+         (types
+          ((Root
+            ((rank 1)
+             (value
+              ((structure
+                ((id 4) (guards ())
+                 (inner
+                  (Structure
+                   (Arrow
+                    (Root
+                     ((rank 0)
+                      (value
+                       ((structure
+                         ((id 16) (guards ()) (inner (Var Empty))
+                          (status
+                           (Partial_instance (region_node <opaque>)
+                            (instances ())))))))))
+                    (Root
+                     ((rank 0)
+                      (value
+                       ((structure
+                         ((id 16) (guards ()) (inner (Var Empty))
+                          (status
+                           (Partial_instance (region_node <opaque>)
+                            (instances ()))))))))))))
+                 (status
+                  (Partial_instance (region_node <opaque>)
+                   (instances
+                    ((4
+                      (Inner
+                       (Root
+                        ((rank 0)
+                         (value
+                          ((structure
+                            ((id 15) (guards (4))
+                             (inner
+                              (Structure
+                               (Arrow
+                                (Root
+                                 ((rank 0)
+                                  (value
+                                   ((structure
+                                     ((id 11) (guards ())
+                                      (inner (Structure (Constr () string)))
+                                      (status (Instance <opaque>))))))))
+                                (Root
+                                 ((rank 0)
+                                  (value
+                                   ((structure
+                                     ((id 10) (guards ())
+                                      (inner (Structure (Constr () string)))
+                                      (status (Instance <opaque>)))))))))))
+                             (status (Instance <opaque>))))))))))
+                     (4
+                      (Inner
+                       (Root
+                        ((rank 1)
+                         (value
+                          ((structure
+                            ((id 9) (guards (4))
+                             (inner
+                              (Structure
+                               (Arrow
+                                (Root
+                                 ((rank 0)
+                                  (value
+                                   ((structure
+                                     ((id 7) (guards ())
+                                      (inner (Structure (Constr () int)))
+                                      (status (Instance <opaque>))))))))
+                                (Root
+                                 ((rank 0)
+                                  (value
+                                   ((structure
+                                     ((id 6) (guards ())
+                                      (inner (Structure (Constr () int)))
+                                      (status (Instance <opaque>)))))))))))
+                             (status (Instance <opaque>))))))))))))))))))))
+           (Root
+            ((rank 0)
+             (value
+              ((structure
+                ((id 16) (guards ()) (inner (Var Empty))
+                 (status
+                  (Partial_instance (region_node <opaque>) (instances ())))))))))
+           (Inner
+            (Root
+             ((rank 1)
+              (value
+               ((structure
+                 ((id 4) (guards ())
+                  (inner
+                   (Structure
+                    (Arrow
+                     (Root
+                      ((rank 0)
+                       (value
+                        ((structure
+                          ((id 16) (guards ()) (inner (Var Empty))
+                           (status
+                            (Partial_instance (region_node <opaque>)
+                             (instances ())))))))))
+                     (Root
+                      ((rank 0)
+                       (value
+                        ((structure
+                          ((id 16) (guards ()) (inner (Var Empty))
+                           (status
+                            (Partial_instance (region_node <opaque>)
+                             (instances ()))))))))))))
+                  (status
+                   (Partial_instance (region_node <opaque>)
+                    (instances
+                     ((4
+                       (Inner
+                        (Root
+                         ((rank 0)
+                          (value
+                           ((structure
+                             ((id 15) (guards (4))
+                              (inner
+                               (Structure
+                                (Arrow
+                                 (Root
+                                  ((rank 0)
+                                   (value
+                                    ((structure
+                                      ((id 11) (guards ())
+                                       (inner (Structure (Constr () string)))
+                                       (status (Instance <opaque>))))))))
+                                 (Root
+                                  ((rank 0)
+                                   (value
+                                    ((structure
+                                      ((id 10) (guards ())
+                                       (inner (Structure (Constr () string)))
+                                       (status (Instance <opaque>)))))))))))
+                              (status (Instance <opaque>))))))))))
+                      (4
+                       (Inner
+                        (Root
+                         ((rank 1)
+                          (value
+                           ((structure
+                             ((id 9) (guards (4))
+                              (inner
+                               (Structure
+                                (Arrow
+                                 (Root
+                                  ((rank 0)
+                                   (value
+                                    ((structure
+                                      ((id 7) (guards ())
+                                       (inner (Structure (Constr () int)))
+                                       (status (Instance <opaque>))))))))
+                                 (Root
+                                  ((rank 0)
+                                   (value
+                                    ((structure
+                                      ((id 6) (guards ())
+                                       (inner (Structure (Constr () int)))
+                                       (status (Instance <opaque>)))))))))))
+                              (status (Instance <opaque>)))))))))))))))))))))))))
+       (node
+        ((id 3)
+         (parent
+          (((id 1)
+            (parent
+             (((id 0) (parent ()) (level 0) (region ((status Alive) (types ()))))))
+            (level 1)
+            (region
+             ((status Alive)
+              (types
+               ((Inner
+                 (Root
+                  ((rank 0)
+                   (value
+                    ((structure
+                      ((id 15) (guards (4))
+                       (inner
+                        (Structure
+                         (Arrow
+                          (Root
+                           ((rank 0)
+                            (value
+                             ((structure
+                               ((id 11) (guards ())
+                                (inner (Structure (Constr () string)))
+                                (status (Instance <opaque>))))))))
+                          (Root
+                           ((rank 0)
+                            (value
+                             ((structure
+                               ((id 10) (guards ())
+                                (inner (Structure (Constr () string)))
+                                (status (Instance <opaque>)))))))))))
+                       (status (Instance <opaque>)))))))))
+                (Root
+                 ((rank 1)
+                  (value
+                   ((structure
+                     ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                      (status (Instance <opaque>))))))))
+                (Inner
+                 (Root
+                  ((rank 0)
+                   (value
+                    ((structure
+                      ((id 15) (guards (4))
+                       (inner
+                        (Structure
+                         (Arrow
+                          (Root
+                           ((rank 0)
+                            (value
+                             ((structure
+                               ((id 11) (guards ())
+                                (inner (Structure (Constr () string)))
+                                (status (Instance <opaque>))))))))
+                          (Root
+                           ((rank 0)
+                            (value
+                             ((structure
+                               ((id 10) (guards ())
+                                (inner (Structure (Constr () string)))
+                                (status (Instance <opaque>)))))))))))
+                       (status (Instance <opaque>)))))))))
+                (Root
+                 ((rank 0)
+                  (value
+                   ((structure
+                     ((id 15) (guards (4))
+                      (inner
+                       (Structure
+                        (Arrow
+                         (Root
+                          ((rank 0)
+                           (value
+                            ((structure
+                              ((id 11) (guards ())
+                               (inner (Structure (Constr () string)))
+                               (status (Instance <opaque>))))))))
+                         (Root
+                          ((rank 0)
+                           (value
+                            ((structure
+                              ((id 10) (guards ())
+                               (inner (Structure (Constr () string)))
+                               (status (Instance <opaque>)))))))))))
+                      (status (Instance <opaque>))))))))
+                (Root
+                 ((rank 0)
+                  (value
+                   ((structure
+                     ((id 11) (guards ()) (inner (Structure (Constr () string)))
+                      (status (Instance <opaque>))))))))
+                (Root
+                 ((rank 0)
+                  (value
+                   ((structure
+                     ((id 10) (guards ()) (inner (Structure (Constr () string)))
+                      (status (Instance <opaque>))))))))
+                (Inner
+                 (Root
+                  ((rank 1)
+                   (value
+                    ((structure
+                      ((id 9) (guards (4))
+                       (inner
+                        (Structure
+                         (Arrow
+                          (Root
+                           ((rank 0)
+                            (value
+                             ((structure
+                               ((id 7) (guards ())
+                                (inner (Structure (Constr () int)))
+                                (status (Instance <opaque>))))))))
+                          (Root
+                           ((rank 0)
+                            (value
+                             ((structure
+                               ((id 6) (guards ())
+                                (inner (Structure (Constr () int)))
+                                (status (Instance <opaque>)))))))))))
+                       (status (Instance <opaque>)))))))))
+                (Root
+                 ((rank 1)
+                  (value
+                   ((structure
+                     ((id 9) (guards (4))
+                      (inner
+                       (Structure
+                        (Arrow
+                         (Root
+                          ((rank 0)
+                           (value
+                            ((structure
+                              ((id 7) (guards ())
+                               (inner (Structure (Constr () int)))
+                               (status (Instance <opaque>))))))))
+                         (Root
+                          ((rank 0)
+                           (value
+                            ((structure
+                              ((id 6) (guards ())
+                               (inner (Structure (Constr () int)))
+                               (status (Instance <opaque>)))))))))))
+                      (status (Instance <opaque>))))))))
+                (Root
+                 ((rank 0)
+                  (value
+                   ((structure
+                     ((id 7) (guards ()) (inner (Structure (Constr () int)))
+                      (status (Instance <opaque>))))))))
+                (Root
+                 ((rank 0)
+                  (value
+                   ((structure
+                     ((id 6) (guards ()) (inner (Structure (Constr () int)))
+                      (status (Instance <opaque>))))))))
+                (Inner
+                 (Root
+                  ((rank 1)
+                   (value
+                    ((structure
+                      ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                       (status (Instance <opaque>))))))))))))))))
+         (level 2)
+         (region
+          ((status Zombie)
+           (types
+            ((Root
+              ((rank 1)
+               (value
+                ((structure
+                  ((id 4) (guards ())
+                   (inner
+                    (Structure
+                     (Arrow
+                      (Root
+                       ((rank 0)
+                        (value
+                         ((structure
+                           ((id 16) (guards ()) (inner (Var Empty))
+                            (status
+                             (Partial_instance (region_node <opaque>)
+                              (instances ())))))))))
+                      (Root
+                       ((rank 0)
+                        (value
+                         ((structure
+                           ((id 16) (guards ()) (inner (Var Empty))
+                            (status
+                             (Partial_instance (region_node <opaque>)
+                              (instances ()))))))))))))
+                   (status
+                    (Partial_instance (region_node <opaque>)
+                     (instances
+                      ((4
+                        (Inner
+                         (Root
+                          ((rank 0)
+                           (value
+                            ((structure
+                              ((id 15) (guards (4))
+                               (inner
+                                (Structure
+                                 (Arrow
+                                  (Root
+                                   ((rank 0)
+                                    (value
+                                     ((structure
+                                       ((id 11) (guards ())
+                                        (inner (Structure (Constr () string)))
+                                        (status (Instance <opaque>))))))))
+                                  (Root
+                                   ((rank 0)
+                                    (value
+                                     ((structure
+                                       ((id 10) (guards ())
+                                        (inner (Structure (Constr () string)))
+                                        (status (Instance <opaque>)))))))))))
+                               (status (Instance <opaque>))))))))))
+                       (4
+                        (Inner
+                         (Root
+                          ((rank 1)
+                           (value
+                            ((structure
+                              ((id 9) (guards (4))
+                               (inner
+                                (Structure
+                                 (Arrow
+                                  (Root
+                                   ((rank 0)
+                                    (value
+                                     ((structure
+                                       ((id 7) (guards ())
+                                        (inner (Structure (Constr () int)))
+                                        (status (Instance <opaque>))))))))
+                                  (Root
+                                   ((rank 0)
+                                    (value
+                                     ((structure
+                                       ((id 6) (guards ())
+                                        (inner (Structure (Constr () int)))
+                                        (status (Instance <opaque>)))))))))))
+                               (status (Instance <opaque>))))))))))))))))))))
+             (Root
+              ((rank 0)
+               (value
+                ((structure
+                  ((id 16) (guards ()) (inner (Var Empty))
+                   (status
+                    (Partial_instance (region_node <opaque>) (instances ())))))))))
+             (Inner
+              (Root
+               ((rank 1)
+                (value
+                 ((structure
+                   ((id 4) (guards ())
+                    (inner
+                     (Structure
+                      (Arrow
+                       (Root
+                        ((rank 0)
+                         (value
+                          ((structure
+                            ((id 16) (guards ()) (inner (Var Empty))
+                             (status
+                              (Partial_instance (region_node <opaque>)
+                               (instances ())))))))))
+                       (Root
+                        ((rank 0)
+                         (value
+                          ((structure
+                            ((id 16) (guards ()) (inner (Var Empty))
+                             (status
+                              (Partial_instance (region_node <opaque>)
+                               (instances ()))))))))))))
+                    (status
+                     (Partial_instance (region_node <opaque>)
+                      (instances
+                       ((4
+                         (Inner
+                          (Root
+                           ((rank 0)
+                            (value
+                             ((structure
+                               ((id 15) (guards (4))
+                                (inner
+                                 (Structure
+                                  (Arrow
+                                   (Root
+                                    ((rank 0)
+                                     (value
+                                      ((structure
+                                        ((id 11) (guards ())
+                                         (inner (Structure (Constr () string)))
+                                         (status (Instance <opaque>))))))))
+                                   (Root
+                                    ((rank 0)
+                                     (value
+                                      ((structure
+                                        ((id 10) (guards ())
+                                         (inner (Structure (Constr () string)))
+                                         (status (Instance <opaque>)))))))))))
+                                (status (Instance <opaque>))))))))))
+                        (4
+                         (Inner
+                          (Root
+                           ((rank 1)
+                            (value
+                             ((structure
+                               ((id 9) (guards (4))
+                                (inner
+                                 (Structure
+                                  (Arrow
+                                   (Root
+                                    ((rank 0)
+                                     (value
+                                      ((structure
+                                        ((id 7) (guards ())
+                                         (inner (Structure (Constr () int)))
+                                         (status (Instance <opaque>))))))))
+                                   (Root
+                                    ((rank 0)
+                                     (value
+                                      ((structure
+                                        ((id 6) (guards ())
+                                         (inner (Structure (Constr () int)))
+                                         (status (Instance <opaque>)))))))))))
+                                (status (Instance <opaque>)))))))))))))))))))))))))))
+       (path
+        ((dst
+          ((id 3)
+           (parent
+            (((id 1)
+              (parent
+               (((id 0) (parent ()) (level 0)
+                 (region ((status Alive) (types ()))))))
+              (level 1)
+              (region
+               ((status Alive)
+                (types
+                 ((Inner
+                   (Root
+                    ((rank 0)
+                     (value
+                      ((structure
+                        ((id 15) (guards (4))
+                         (inner
+                          (Structure
+                           (Arrow
+                            (Root
+                             ((rank 0)
+                              (value
+                               ((structure
+                                 ((id 11) (guards ())
+                                  (inner (Structure (Constr () string)))
+                                  (status (Instance <opaque>))))))))
+                            (Root
+                             ((rank 0)
+                              (value
+                               ((structure
+                                 ((id 10) (guards ())
+                                  (inner (Structure (Constr () string)))
+                                  (status (Instance <opaque>)))))))))))
+                         (status (Instance <opaque>)))))))))
+                  (Root
+                   ((rank 1)
+                    (value
+                     ((structure
+                       ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                        (status (Instance <opaque>))))))))
+                  (Inner
+                   (Root
+                    ((rank 0)
+                     (value
+                      ((structure
+                        ((id 15) (guards (4))
+                         (inner
+                          (Structure
+                           (Arrow
+                            (Root
+                             ((rank 0)
+                              (value
+                               ((structure
+                                 ((id 11) (guards ())
+                                  (inner (Structure (Constr () string)))
+                                  (status (Instance <opaque>))))))))
+                            (Root
+                             ((rank 0)
+                              (value
+                               ((structure
+                                 ((id 10) (guards ())
+                                  (inner (Structure (Constr () string)))
+                                  (status (Instance <opaque>)))))))))))
+                         (status (Instance <opaque>)))))))))
+                  (Root
+                   ((rank 0)
+                    (value
+                     ((structure
+                       ((id 15) (guards (4))
+                        (inner
+                         (Structure
+                          (Arrow
+                           (Root
+                            ((rank 0)
+                             (value
+                              ((structure
+                                ((id 11) (guards ())
+                                 (inner (Structure (Constr () string)))
+                                 (status (Instance <opaque>))))))))
+                           (Root
+                            ((rank 0)
+                             (value
+                              ((structure
+                                ((id 10) (guards ())
+                                 (inner (Structure (Constr () string)))
+                                 (status (Instance <opaque>)))))))))))
+                        (status (Instance <opaque>))))))))
+                  (Root
+                   ((rank 0)
+                    (value
+                     ((structure
+                       ((id 11) (guards ())
+                        (inner (Structure (Constr () string)))
+                        (status (Instance <opaque>))))))))
+                  (Root
+                   ((rank 0)
+                    (value
+                     ((structure
+                       ((id 10) (guards ())
+                        (inner (Structure (Constr () string)))
+                        (status (Instance <opaque>))))))))
+                  (Inner
+                   (Root
+                    ((rank 1)
+                     (value
+                      ((structure
+                        ((id 9) (guards (4))
+                         (inner
+                          (Structure
+                           (Arrow
+                            (Root
+                             ((rank 0)
+                              (value
+                               ((structure
+                                 ((id 7) (guards ())
+                                  (inner (Structure (Constr () int)))
+                                  (status (Instance <opaque>))))))))
+                            (Root
+                             ((rank 0)
+                              (value
+                               ((structure
+                                 ((id 6) (guards ())
+                                  (inner (Structure (Constr () int)))
+                                  (status (Instance <opaque>)))))))))))
+                         (status (Instance <opaque>)))))))))
+                  (Root
+                   ((rank 1)
+                    (value
+                     ((structure
+                       ((id 9) (guards (4))
+                        (inner
+                         (Structure
+                          (Arrow
+                           (Root
+                            ((rank 0)
+                             (value
+                              ((structure
+                                ((id 7) (guards ())
+                                 (inner (Structure (Constr () int)))
+                                 (status (Instance <opaque>))))))))
+                           (Root
+                            ((rank 0)
+                             (value
+                              ((structure
+                                ((id 6) (guards ())
+                                 (inner (Structure (Constr () int)))
+                                 (status (Instance <opaque>)))))))))))
+                        (status (Instance <opaque>))))))))
+                  (Root
+                   ((rank 0)
+                    (value
+                     ((structure
+                       ((id 7) (guards ()) (inner (Structure (Constr () int)))
+                        (status (Instance <opaque>))))))))
+                  (Root
+                   ((rank 0)
+                    (value
+                     ((structure
+                       ((id 6) (guards ()) (inner (Structure (Constr () int)))
+                        (status (Instance <opaque>))))))))
+                  (Inner
+                   (Root
+                    ((rank 1)
+                     (value
+                      ((structure
+                        ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                         (status (Instance <opaque>))))))))))))))))
+           (level 2)
+           (region
+            ((status Zombie)
+             (types
+              ((Root
+                ((rank 1)
+                 (value
+                  ((structure
+                    ((id 4) (guards ())
+                     (inner
+                      (Structure
+                       (Arrow
+                        (Root
+                         ((rank 0)
+                          (value
+                           ((structure
+                             ((id 16) (guards ()) (inner (Var Empty))
+                              (status
+                               (Partial_instance (region_node <opaque>)
+                                (instances ())))))))))
+                        (Root
+                         ((rank 0)
+                          (value
+                           ((structure
+                             ((id 16) (guards ()) (inner (Var Empty))
+                              (status
+                               (Partial_instance (region_node <opaque>)
+                                (instances ()))))))))))))
+                     (status
+                      (Partial_instance (region_node <opaque>)
+                       (instances
+                        ((4
+                          (Inner
+                           (Root
+                            ((rank 0)
+                             (value
+                              ((structure
+                                ((id 15) (guards (4))
+                                 (inner
+                                  (Structure
+                                   (Arrow
+                                    (Root
+                                     ((rank 0)
+                                      (value
+                                       ((structure
+                                         ((id 11) (guards ())
+                                          (inner (Structure (Constr () string)))
+                                          (status (Instance <opaque>))))))))
+                                    (Root
+                                     ((rank 0)
+                                      (value
+                                       ((structure
+                                         ((id 10) (guards ())
+                                          (inner (Structure (Constr () string)))
+                                          (status (Instance <opaque>)))))))))))
+                                 (status (Instance <opaque>))))))))))
+                         (4
+                          (Inner
+                           (Root
+                            ((rank 1)
+                             (value
+                              ((structure
+                                ((id 9) (guards (4))
+                                 (inner
+                                  (Structure
+                                   (Arrow
+                                    (Root
+                                     ((rank 0)
+                                      (value
+                                       ((structure
+                                         ((id 7) (guards ())
+                                          (inner (Structure (Constr () int)))
+                                          (status (Instance <opaque>))))))))
+                                    (Root
+                                     ((rank 0)
+                                      (value
+                                       ((structure
+                                         ((id 6) (guards ())
+                                          (inner (Structure (Constr () int)))
+                                          (status (Instance <opaque>)))))))))))
+                                 (status (Instance <opaque>))))))))))))))))))))
+               (Root
+                ((rank 0)
+                 (value
+                  ((structure
+                    ((id 16) (guards ()) (inner (Var Empty))
+                     (status
+                      (Partial_instance (region_node <opaque>) (instances ())))))))))
+               (Inner
+                (Root
+                 ((rank 1)
+                  (value
+                   ((structure
+                     ((id 4) (guards ())
+                      (inner
+                       (Structure
+                        (Arrow
+                         (Root
+                          ((rank 0)
+                           (value
+                            ((structure
+                              ((id 16) (guards ()) (inner (Var Empty))
+                               (status
+                                (Partial_instance (region_node <opaque>)
+                                 (instances ())))))))))
+                         (Root
+                          ((rank 0)
+                           (value
+                            ((structure
+                              ((id 16) (guards ()) (inner (Var Empty))
+                               (status
+                                (Partial_instance (region_node <opaque>)
+                                 (instances ()))))))))))))
+                      (status
+                       (Partial_instance (region_node <opaque>)
+                        (instances
+                         ((4
+                           (Inner
+                            (Root
+                             ((rank 0)
+                              (value
+                               ((structure
+                                 ((id 15) (guards (4))
+                                  (inner
+                                   (Structure
+                                    (Arrow
+                                     (Root
+                                      ((rank 0)
+                                       (value
+                                        ((structure
+                                          ((id 11) (guards ())
+                                           (inner (Structure (Constr () string)))
+                                           (status (Instance <opaque>))))))))
+                                     (Root
+                                      ((rank 0)
+                                       (value
+                                        ((structure
+                                          ((id 10) (guards ())
+                                           (inner (Structure (Constr () string)))
+                                           (status (Instance <opaque>)))))))))))
+                                  (status (Instance <opaque>))))))))))
+                          (4
+                           (Inner
+                            (Root
+                             ((rank 1)
+                              (value
+                               ((structure
+                                 ((id 9) (guards (4))
+                                  (inner
+                                   (Structure
+                                    (Arrow
+                                     (Root
+                                      ((rank 0)
+                                       (value
+                                        ((structure
+                                          ((id 7) (guards ())
+                                           (inner (Structure (Constr () int)))
+                                           (status (Instance <opaque>))))))))
+                                     (Root
+                                      ((rank 0)
+                                       (value
+                                        ((structure
+                                          ((id 6) (guards ())
+                                           (inner (Structure (Constr () int)))
+                                           (status (Instance <opaque>)))))))))))
+                                  (status (Instance <opaque>)))))))))))))))))))))))))))
+         (compare_node_by_level <fun>) (mem <fun>)))
+       (mem <fun>))))
+    Generalizing zombie region into dead region
+    ("Removing guard"
+     (t
+      (Inner
+       (Root
+        ((rank 0)
+         (value
+          ((structure
+            ((id 15) (guards (4))
+             (inner
+              (Structure
+               (Arrow
+                (Root
+                 ((rank 0)
+                  (value
+                   ((structure
+                     ((id 11) (guards ()) (inner (Structure (Constr () string)))
+                      (status (Instance <opaque>))))))))
+                (Root
+                 ((rank 0)
+                  (value
+                   ((structure
+                     ((id 10) (guards ()) (inner (Structure (Constr () string)))
+                      (status (Instance <opaque>)))))))))))
+             (status (Instance <opaque>))))))))))
+     (guard 4))
+    ("Removing guard"
+     (t
+      (Inner
+       (Root
+        ((rank 0)
+         (value
+          ((structure
+            ((id 18) (guards (4))
+             (inner
+              (Structure
+               (Arrow
+                (Inner
+                 (Root
+                  ((rank 1)
+                   (value
+                    ((structure
+                      ((id 19) (guards ()) (inner (Structure (Constr () int)))
+                       (status (Instance <opaque>)))))))))
+                (Inner
+                 (Root
+                  ((rank 1)
+                   (value
+                    ((structure
+                      ((id 19) (guards ()) (inner (Structure (Constr () int)))
+                       (status (Instance <opaque>))))))))))))
+             (status (Instance <opaque>))))))))))
+     (guard 4))
+    Generalizing zombie region into dead region
+    ("Generalizing region"
+     (curr_region
+      ((region
+        ((status Alive)
+         (types
+          ((Root
+            ((rank 1)
+             (value
+              ((structure
+                ((id 19) (guards ()) (inner (Structure (Constr () int)))
+                 (status (Instance <opaque>))))))))
+           (Root
+            ((rank 0)
+             (value
+              ((structure
+                ((id 18) (guards ())
+                 (inner
+                  (Structure
+                   (Arrow
+                    (Root
+                     ((rank 1)
+                      (value
+                       ((structure
+                         ((id 19) (guards ()) (inner (Structure (Constr () int)))
+                          (status (Instance <opaque>))))))))
+                    (Root
+                     ((rank 1)
+                      (value
+                       ((structure
+                         ((id 19) (guards ()) (inner (Structure (Constr () int)))
+                          (status (Instance <opaque>)))))))))))
+                 (status (Instance <opaque>))))))))
+           (Root
+            ((rank 0)
+             (value
+              ((structure
+                ((id 15) (guards ())
+                 (inner
+                  (Structure
+                   (Arrow
+                    (Root
+                     ((rank 0)
+                      (value
+                       ((structure
+                         ((id 11) (guards ())
+                          (inner (Structure (Constr () string)))
+                          (status (Instance <opaque>))))))))
+                    (Root
+                     ((rank 0)
+                      (value
+                       ((structure
+                         ((id 10) (guards ())
+                          (inner (Structure (Constr () string)))
+                          (status (Instance <opaque>)))))))))))
+                 (status (Instance <opaque>))))))))
+           (Root
+            ((rank 1)
+             (value
+              ((structure
+                ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                 (status (Instance <opaque>))))))))
+           (Inner
+            (Root
+             ((rank 0)
+              (value
+               ((structure
+                 ((id 15) (guards ())
+                  (inner
+                   (Structure
+                    (Arrow
+                     (Root
+                      ((rank 0)
+                       (value
+                        ((structure
+                          ((id 11) (guards ())
+                           (inner (Structure (Constr () string)))
+                           (status (Instance <opaque>))))))))
+                     (Root
+                      ((rank 0)
+                       (value
+                        ((structure
+                          ((id 10) (guards ())
+                           (inner (Structure (Constr () string)))
+                           (status (Instance <opaque>)))))))))))
+                  (status (Instance <opaque>)))))))))
+           (Root
+            ((rank 0)
+             (value
+              ((structure
+                ((id 15) (guards ())
+                 (inner
+                  (Structure
+                   (Arrow
+                    (Root
+                     ((rank 0)
+                      (value
+                       ((structure
+                         ((id 11) (guards ())
+                          (inner (Structure (Constr () string)))
+                          (status (Instance <opaque>))))))))
+                    (Root
+                     ((rank 0)
+                      (value
+                       ((structure
+                         ((id 10) (guards ())
+                          (inner (Structure (Constr () string)))
+                          (status (Instance <opaque>)))))))))))
+                 (status (Instance <opaque>))))))))
+           (Root
+            ((rank 0)
+             (value
+              ((structure
+                ((id 11) (guards ()) (inner (Structure (Constr () string)))
+                 (status (Instance <opaque>))))))))
+           (Root
+            ((rank 0)
+             (value
+              ((structure
+                ((id 10) (guards ()) (inner (Structure (Constr () string)))
+                 (status (Instance <opaque>))))))))
+           (Inner
+            (Root
+             ((rank 0)
+              (value
+               ((structure
+                 ((id 18) (guards ())
+                  (inner
+                   (Structure
+                    (Arrow
+                     (Root
+                      ((rank 1)
+                       (value
+                        ((structure
+                          ((id 19) (guards ())
+                           (inner (Structure (Constr () int)))
+                           (status (Instance <opaque>))))))))
+                     (Root
+                      ((rank 1)
+                       (value
+                        ((structure
+                          ((id 19) (guards ())
+                           (inner (Structure (Constr () int)))
+                           (status (Instance <opaque>)))))))))))
+                  (status (Instance <opaque>)))))))))
+           (Root
+            ((rank 0)
+             (value
+              ((structure
+                ((id 18) (guards ())
+                 (inner
+                  (Structure
+                   (Arrow
+                    (Root
+                     ((rank 1)
+                      (value
+                       ((structure
+                         ((id 19) (guards ()) (inner (Structure (Constr () int)))
+                          (status (Instance <opaque>))))))))
+                    (Root
+                     ((rank 1)
+                      (value
+                       ((structure
+                         ((id 19) (guards ()) (inner (Structure (Constr () int)))
+                          (status (Instance <opaque>)))))))))))
+                 (status (Instance <opaque>))))))))
+           (Root
+            ((rank 1)
+             (value
+              ((structure
+                ((id 19) (guards ()) (inner (Structure (Constr () int)))
+                 (status (Instance <opaque>))))))))
+           (Inner
+            (Root
+             ((rank 1)
+              (value
+               ((structure
+                 ((id 19) (guards ()) (inner (Structure (Constr () int)))
+                  (status (Instance <opaque>)))))))))
+           (Inner
+            (Root
+             ((rank 1)
+              (value
+               ((structure
+                 ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                  (status (Instance <opaque>)))))))))))))
+       (node
+        ((id 1)
+         (parent
+          (((id 0) (parent ()) (level 0) (region ((status Alive) (types ()))))))
+         (level 1)
+         (region
+          ((status Alive)
+           (types
+            ((Root
+              ((rank 1)
+               (value
+                ((structure
+                  ((id 19) (guards ()) (inner (Structure (Constr () int)))
+                   (status (Instance <opaque>))))))))
+             (Root
+              ((rank 0)
+               (value
+                ((structure
+                  ((id 18) (guards ())
+                   (inner
+                    (Structure
+                     (Arrow
+                      (Root
+                       ((rank 1)
+                        (value
+                         ((structure
+                           ((id 19) (guards ())
+                            (inner (Structure (Constr () int)))
+                            (status (Instance <opaque>))))))))
+                      (Root
+                       ((rank 1)
+                        (value
+                         ((structure
+                           ((id 19) (guards ())
+                            (inner (Structure (Constr () int)))
+                            (status (Instance <opaque>)))))))))))
+                   (status (Instance <opaque>))))))))
+             (Root
+              ((rank 0)
+               (value
+                ((structure
+                  ((id 15) (guards ())
+                   (inner
+                    (Structure
+                     (Arrow
+                      (Root
+                       ((rank 0)
+                        (value
+                         ((structure
+                           ((id 11) (guards ())
+                            (inner (Structure (Constr () string)))
+                            (status (Instance <opaque>))))))))
+                      (Root
+                       ((rank 0)
+                        (value
+                         ((structure
+                           ((id 10) (guards ())
+                            (inner (Structure (Constr () string)))
+                            (status (Instance <opaque>)))))))))))
+                   (status (Instance <opaque>))))))))
+             (Root
+              ((rank 1)
+               (value
+                ((structure
+                  ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                   (status (Instance <opaque>))))))))
+             (Inner
+              (Root
+               ((rank 0)
+                (value
+                 ((structure
+                   ((id 15) (guards ())
+                    (inner
+                     (Structure
+                      (Arrow
+                       (Root
+                        ((rank 0)
+                         (value
+                          ((structure
+                            ((id 11) (guards ())
+                             (inner (Structure (Constr () string)))
+                             (status (Instance <opaque>))))))))
+                       (Root
+                        ((rank 0)
+                         (value
+                          ((structure
+                            ((id 10) (guards ())
+                             (inner (Structure (Constr () string)))
+                             (status (Instance <opaque>)))))))))))
+                    (status (Instance <opaque>)))))))))
+             (Root
+              ((rank 0)
+               (value
+                ((structure
+                  ((id 15) (guards ())
+                   (inner
+                    (Structure
+                     (Arrow
+                      (Root
+                       ((rank 0)
+                        (value
+                         ((structure
+                           ((id 11) (guards ())
+                            (inner (Structure (Constr () string)))
+                            (status (Instance <opaque>))))))))
+                      (Root
+                       ((rank 0)
+                        (value
+                         ((structure
+                           ((id 10) (guards ())
+                            (inner (Structure (Constr () string)))
+                            (status (Instance <opaque>)))))))))))
+                   (status (Instance <opaque>))))))))
+             (Root
+              ((rank 0)
+               (value
+                ((structure
+                  ((id 11) (guards ()) (inner (Structure (Constr () string)))
+                   (status (Instance <opaque>))))))))
+             (Root
+              ((rank 0)
+               (value
+                ((structure
+                  ((id 10) (guards ()) (inner (Structure (Constr () string)))
+                   (status (Instance <opaque>))))))))
+             (Inner
+              (Root
+               ((rank 0)
+                (value
+                 ((structure
+                   ((id 18) (guards ())
+                    (inner
+                     (Structure
+                      (Arrow
+                       (Root
+                        ((rank 1)
+                         (value
+                          ((structure
+                            ((id 19) (guards ())
+                             (inner (Structure (Constr () int)))
+                             (status (Instance <opaque>))))))))
+                       (Root
+                        ((rank 1)
+                         (value
+                          ((structure
+                            ((id 19) (guards ())
+                             (inner (Structure (Constr () int)))
+                             (status (Instance <opaque>)))))))))))
+                    (status (Instance <opaque>)))))))))
+             (Root
+              ((rank 0)
+               (value
+                ((structure
+                  ((id 18) (guards ())
+                   (inner
+                    (Structure
+                     (Arrow
+                      (Root
+                       ((rank 1)
+                        (value
+                         ((structure
+                           ((id 19) (guards ())
+                            (inner (Structure (Constr () int)))
+                            (status (Instance <opaque>))))))))
+                      (Root
+                       ((rank 1)
+                        (value
+                         ((structure
+                           ((id 19) (guards ())
+                            (inner (Structure (Constr () int)))
+                            (status (Instance <opaque>)))))))))))
+                   (status (Instance <opaque>))))))))
+             (Root
+              ((rank 1)
+               (value
+                ((structure
+                  ((id 19) (guards ()) (inner (Structure (Constr () int)))
+                   (status (Instance <opaque>))))))))
+             (Inner
+              (Root
+               ((rank 1)
+                (value
+                 ((structure
+                   ((id 19) (guards ()) (inner (Structure (Constr () int)))
+                    (status (Instance <opaque>)))))))))
+             (Inner
+              (Root
+               ((rank 1)
+                (value
+                 ((structure
+                   ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                    (status (Instance <opaque>)))))))))))))))
+       (path
+        ((dst
+          ((id 1)
+           (parent
+            (((id 0) (parent ()) (level 0) (region ((status Alive) (types ()))))))
+           (level 1)
+           (region
+            ((status Alive)
+             (types
+              ((Root
+                ((rank 1)
+                 (value
+                  ((structure
+                    ((id 19) (guards ()) (inner (Structure (Constr () int)))
+                     (status (Instance <opaque>))))))))
+               (Root
+                ((rank 0)
+                 (value
+                  ((structure
+                    ((id 18) (guards ())
+                     (inner
+                      (Structure
+                       (Arrow
+                        (Root
+                         ((rank 1)
+                          (value
+                           ((structure
+                             ((id 19) (guards ())
+                              (inner (Structure (Constr () int)))
+                              (status (Instance <opaque>))))))))
+                        (Root
+                         ((rank 1)
+                          (value
+                           ((structure
+                             ((id 19) (guards ())
+                              (inner (Structure (Constr () int)))
+                              (status (Instance <opaque>)))))))))))
+                     (status (Instance <opaque>))))))))
+               (Root
+                ((rank 0)
+                 (value
+                  ((structure
+                    ((id 15) (guards ())
+                     (inner
+                      (Structure
+                       (Arrow
+                        (Root
+                         ((rank 0)
+                          (value
+                           ((structure
+                             ((id 11) (guards ())
+                              (inner (Structure (Constr () string)))
+                              (status (Instance <opaque>))))))))
+                        (Root
+                         ((rank 0)
+                          (value
+                           ((structure
+                             ((id 10) (guards ())
+                              (inner (Structure (Constr () string)))
+                              (status (Instance <opaque>)))))))))))
+                     (status (Instance <opaque>))))))))
+               (Root
+                ((rank 1)
+                 (value
+                  ((structure
+                    ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                     (status (Instance <opaque>))))))))
+               (Inner
+                (Root
+                 ((rank 0)
+                  (value
+                   ((structure
+                     ((id 15) (guards ())
+                      (inner
+                       (Structure
+                        (Arrow
+                         (Root
+                          ((rank 0)
+                           (value
+                            ((structure
+                              ((id 11) (guards ())
+                               (inner (Structure (Constr () string)))
+                               (status (Instance <opaque>))))))))
+                         (Root
+                          ((rank 0)
+                           (value
+                            ((structure
+                              ((id 10) (guards ())
+                               (inner (Structure (Constr () string)))
+                               (status (Instance <opaque>)))))))))))
+                      (status (Instance <opaque>)))))))))
+               (Root
+                ((rank 0)
+                 (value
+                  ((structure
+                    ((id 15) (guards ())
+                     (inner
+                      (Structure
+                       (Arrow
+                        (Root
+                         ((rank 0)
+                          (value
+                           ((structure
+                             ((id 11) (guards ())
+                              (inner (Structure (Constr () string)))
+                              (status (Instance <opaque>))))))))
+                        (Root
+                         ((rank 0)
+                          (value
+                           ((structure
+                             ((id 10) (guards ())
+                              (inner (Structure (Constr () string)))
+                              (status (Instance <opaque>)))))))))))
+                     (status (Instance <opaque>))))))))
+               (Root
+                ((rank 0)
+                 (value
+                  ((structure
+                    ((id 11) (guards ()) (inner (Structure (Constr () string)))
+                     (status (Instance <opaque>))))))))
+               (Root
+                ((rank 0)
+                 (value
+                  ((structure
+                    ((id 10) (guards ()) (inner (Structure (Constr () string)))
+                     (status (Instance <opaque>))))))))
+               (Inner
+                (Root
+                 ((rank 0)
+                  (value
+                   ((structure
+                     ((id 18) (guards ())
+                      (inner
+                       (Structure
+                        (Arrow
+                         (Root
+                          ((rank 1)
+                           (value
+                            ((structure
+                              ((id 19) (guards ())
+                               (inner (Structure (Constr () int)))
+                               (status (Instance <opaque>))))))))
+                         (Root
+                          ((rank 1)
+                           (value
+                            ((structure
+                              ((id 19) (guards ())
+                               (inner (Structure (Constr () int)))
+                               (status (Instance <opaque>)))))))))))
+                      (status (Instance <opaque>)))))))))
+               (Root
+                ((rank 0)
+                 (value
+                  ((structure
+                    ((id 18) (guards ())
+                     (inner
+                      (Structure
+                       (Arrow
+                        (Root
+                         ((rank 1)
+                          (value
+                           ((structure
+                             ((id 19) (guards ())
+                              (inner (Structure (Constr () int)))
+                              (status (Instance <opaque>))))))))
+                        (Root
+                         ((rank 1)
+                          (value
+                           ((structure
+                             ((id 19) (guards ())
+                              (inner (Structure (Constr () int)))
+                              (status (Instance <opaque>)))))))))))
+                     (status (Instance <opaque>))))))))
+               (Root
+                ((rank 1)
+                 (value
+                  ((structure
+                    ((id 19) (guards ()) (inner (Structure (Constr () int)))
+                     (status (Instance <opaque>))))))))
+               (Inner
+                (Root
+                 ((rank 1)
+                  (value
+                   ((structure
+                     ((id 19) (guards ()) (inner (Structure (Constr () int)))
+                      (status (Instance <opaque>)))))))))
+               (Inner
+                (Root
+                 ((rank 1)
+                  (value
+                   ((structure
+                     ((id 2) (guards ()) (inner (Structure (Constr () int)))
+                      (status (Instance <opaque>)))))))))))))))
+         (compare_node_by_level <fun>) (mem <fun>)))
+       (mem <fun>))))
+    Type made generic
+    Type made generic
+    Type made generic
+    Type made generic
+    Type made generic
+    Type made generic
+    Type made generic
+    Type made generic
+    Type made generic
+    ("Constraint is satisfiable"
      (cst
       (Exists ((id 9) (name Type.Var))
        (Let ((id 2) (name Constraint.Var))
@@ -198,9 +2738,6 @@ let%expect_test "Partial generic is still generic" =
           (Instance ((id 2) (name Constraint.Var))
            (Structure
             (Arrow (Structure (Constr () string)) (Structure (Constr () string))))))
-         (Eq (Var ((id 9) (name Type.Var))) (Structure (Constr () int)))))))
-     (err
-      ("Failed to solve constraint"
-       (exn (Not_found_s ("Hashtbl.find_exn: not found" 4))))))
+         (Eq (Var ((id 9) (name Type.Var))) (Structure (Constr () int))))))))
     |}]
 ;;

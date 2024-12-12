@@ -1,4 +1,5 @@
 open Core
+open Async
 open Mlsus_std
 
 module type S = sig
@@ -80,7 +81,7 @@ module Make (S : Structure.Basic) = struct
         ~ctx
         ~create:Type.create
         ~unify:(Work_queue.enqueue work_queue)
-        ~type1 
+        ~type1
         ~type2
         (Type.structure type1)
         (Type.structure type2)
@@ -91,9 +92,13 @@ module Make (S : Structure.Basic) = struct
     ;;
 
     let rec unify_exn ~ctx ~work_queue type1 type2 =
+      [%log.global.debug "(Unifier) Unifying" (type1 : Type.t) (type2 : Type.t)];
       let desc = unify_desc ~ctx ~work_queue type1 type2 in
       Union_find.union type1 type2;
+      assert (Union_find.same_class type1 type2);
       Union_find.set type1 desc;
+    
+      [%log.global.debug "(Unifier) Resultant type" (type1 : Type.t) (type2: Type.t)];
       Work_queue.run work_queue ~f:(unify_exn ~ctx ~work_queue)
     ;;
 

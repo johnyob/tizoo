@@ -58,7 +58,9 @@
             ocamlPackages.dune
 
             ocamlPackages.core
+            ocamlPackages.async
             ocamlPackages.ppx_jane
+            ocamlPackages.sexp
           ];
         };
       });

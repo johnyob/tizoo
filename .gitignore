@@ -27,3 +27,6 @@ setup.log
 
 # Local OPAM switch
 _opam/
+
+# Any .sexp files (used for debugging output)
+*.sexp

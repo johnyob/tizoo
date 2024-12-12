@@ -1,0 +1,6 @@
+(library
+ (name mlsus_constraints)
+ (public_name mlsus.constraints)
+ (libraries core async mlsus.std mlsus.unifier)
+ (preprocess
+  (pps ppx_jane -log-source-position)))

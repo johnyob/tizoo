@@ -49,8 +49,8 @@ open Base
 *)
 
 type 'a root =
-  { rank : int
-  ; value : 'a
+  { mutable rank : int
+  ; mutable value : 'a
   }
 
 and 'a node =
@@ -97,39 +97,26 @@ let repr t =
 
 let root t =
   match !t with
-  | Root _ -> t
-  | _ -> fst (repr t)
+  | Root r -> r
+  | _ -> snd (repr t)
 ;;
 
-let rec get t =
-  match !t with
-  | Root { value; _ } -> value
-  | Inner t' ->
-    (match !t' with
-     | Root { value; _ } -> value
-     | Inner _ -> get (root t))
-;;
-
-let rec set t v =
-  match !t with
-  | Root { rank; _ } -> t := Root { rank; value = v }
-  | Inner t' ->
-    (match !t' with
-     | Root { rank; _ } -> t := Root { rank; value = v }
-     | Inner _ -> set (root t) v)
-;;
+let get t = (root t).value
+let set t v = (root t).value <- v
 
 let union t1 t2 =
-  let t1, { rank = r1; value = _ } = repr t1 in
-  let t2, { rank = r2; value = v2 } = repr t2 in
+  let t1, r1 = repr t1 in
+  let t2, r2 = repr t2 in
   if phys_equal t1 t2
   then ()
-  else if r2 < r1
-  then t2 := Inner t1
   else (
-    let r = if r1 < r2 then r1 else r1 + 1 in
-    t1 := Inner t2;
-    t2 := Root { rank = r; value = v2 })
+    let n1 = r1.rank in
+    let n2 = r2.rank in
+    if n1 < n2
+    then t1 := Inner t2
+    else (
+      t2 := Inner t1;
+      if n1 = n2 then r1.rank <- r1.rank + 1))
 ;;
 
 let same_class t1 t2 = phys_equal (root t1) (root t2)

@@ -1,0 +1,6 @@
+(library
+ (name mlsus_unifier)
+ (public_name mlsus.unifier)
+ (libraries core mlsus.std)
+ (preprocess
+  (pps ppx_jane)))

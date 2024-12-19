@@ -80,7 +80,7 @@ module Make (S : Structure.Basic) = struct
         ~ctx
         ~create:Type.create
         ~unify:(Work_queue.enqueue work_queue)
-        ~type1 
+        ~type1
         ~type2
         (Type.structure type1)
         (Type.structure type2)

@@ -2,4 +2,5 @@
  (name mlsus_std)
  (public_name mlsus.std)
  (libraries core)
- (preprocess (pps ppx_jane)))
+ (preprocess
+  (pps ppx_jane)))

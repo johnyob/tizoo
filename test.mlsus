@@ -1,0 +1,5 @@
+let incr = exists (type 'a) -> fun (x : 'a) -> (x + 1 : 'a);;
+
+type x = { y : int };;
+
+let foo = fun { y = z } -> { y = z + 1 };;

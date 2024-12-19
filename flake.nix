@@ -57,8 +57,10 @@
             ocamlPackages.ocaml
             ocamlPackages.dune
 
+            # Mlsus dependencies
             ocamlPackages.core
             ocamlPackages.ppx_jane
+            ocamlPackages.grace
           ];
         };
       });

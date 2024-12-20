@@ -17,18 +17,23 @@ type rec_flag =
   | Recursive
 [@@deriving sexp_of]
 
-type 'a with_range =
-  { it : 'a
-  ; range : Range.t
-  }
-[@@deriving sexp_of]
+module With_range = struct
+  type 'a t =
+    { it : 'a
+    ; range : Range.t
+    }
+  [@@deriving sexp_of]
 
-type type_variable_name = Type_var_name of string with_range
+  let create ~range it = { it; range }
+  let unwrap t = t.it
+end
+
+type type_variable_name = Type_var_name of string With_range.t
 [@@unboxed] [@@deriving sexp_of]
 
-type constructor_name = Constructor_name of string with_range
+type constructor_name = Constructor_name of string With_range.t
 [@@unboxed] [@@deriving sexp_of]
 
-type label_name = Label_name of string with_range [@@unboxed] [@@deriving sexp_of]
-type variable_name = Var_name of string with_range [@@unboxed] [@@deriving sexp_of]
-type type_name = Type_name of string with_range [@@unboxed] [@@deriving sexp_of]
+type label_name = Label_name of string With_range.t [@@unboxed] [@@deriving sexp_of]
+type variable_name = Var_name of string With_range.t [@@unboxed] [@@deriving sexp_of]
+type type_name = Type_name of string With_range.t [@@unboxed] [@@deriving sexp_of]

@@ -1,9 +1,6 @@
-module Ast_types = Ast_types
 module Ast = Ast
+module Ast_builder = Ast_builder
+module Ast_types = Ast_types
+module With_range = Ast_types.With_range
 module Range = Grace.Range
 
-type 'a with_range = 'a Ast_types.with_range =
-  { it : 'a
-  ; range : Range.t
-  }
-[@@deriving sexp_of]

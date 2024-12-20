@@ -4,7 +4,7 @@ open Ast_types
 (* This module defines the type for the abstract syntax tree (AST) produced by
    parsing mlsus's source code. *)
 
-type core_type = core_type_desc with_range [@@deriving sexp_of]
+type core_type = core_type_desc With_range.t [@@deriving sexp_of]
 
 and core_type_desc =
   | Type_var of type_variable_name
@@ -13,9 +13,9 @@ and core_type_desc =
   | Type_constr of core_type list * type_name
 [@@deriving sexp_of]
 
-type core_scheme = (string list * core_type) with_range [@@deriving sexp_of]
+type core_scheme = (type_variable_name list * core_type) With_range.t [@@deriving sexp_of]
 
-type pattern = pattern_desc with_range [@@deriving sexp_of]
+type pattern = pattern_desc With_range.t [@@deriving sexp_of]
 
 and pattern_desc =
   | Pat_any
@@ -23,11 +23,11 @@ and pattern_desc =
   | Pat_alias of pattern * variable_name
   | Pat_const of constant
   | Pat_tuple of pattern list
-  | Pat_constructor of constructor_name * pattern option
+  | Pat_constr of constructor_name * pattern option
   | Pat_annot of pattern * core_type
 [@@deriving sexp_of]
 
-type expression = expression_desc with_range [@@deriving sexp_of]
+type expression = expression_desc With_range.t [@@deriving sexp_of]
 
 and expression_desc =
   | Exp_var of variable_name
@@ -37,7 +37,7 @@ and expression_desc =
   | Exp_let of rec_flag * value_binding list * expression
   | Exp_exists of type_variable_name list * expression
   | Exp_annot of expression * core_type
-  | Exp_constructor of constructor_name * expression option
+  | Exp_constr of constructor_name * expression option
   | Exp_record of (label_name * expression) list
   | Exp_field of expression * label_name
   | Exp_tuple of expression list
@@ -46,7 +46,7 @@ and expression_desc =
   | Exp_sequence of expression * expression
 [@@deriving sexp_of]
 
-and value_binding = value_binding_desc with_range [@@deriving sexp_of]
+and value_binding = value_binding_desc With_range.t [@@deriving sexp_of]
 
 and value_binding_desc =
   { value_binding_pat : pattern
@@ -54,7 +54,7 @@ and value_binding_desc =
   }
 [@@deriving sexp_of]
 
-and case = case_desc with_range [@@deriving sexp_of]
+and case = case_desc With_range.t [@@deriving sexp_of]
 
 and case_desc =
   { case_lhs : pattern
@@ -62,7 +62,7 @@ and case_desc =
   }
 [@@deriving sexp_of]
 
-type value_description = value_description_desc with_range [@@deriving sexp_of]
+type value_description = value_description_desc With_range.t [@@deriving sexp_of]
 
 and value_description_desc =
   { value_name : variable_name
@@ -70,9 +70,9 @@ and value_description_desc =
   }
 [@@deriving sexp_of]
 
-type type_declaration = type_description_desc with_range [@@deriving sexp_of]
+type type_declaration = type_declaration_desc With_range.t [@@deriving sexp_of]
 
-and type_description_desc =
+and type_declaration_desc =
   { type_decl_name : type_name
   ; type_decl_params : type_variable_name list
   ; type_decl_kind : type_decl_kind
@@ -96,7 +96,7 @@ and constructor_declaration =
   }
 [@@deriving sexp_of]
 
-type structure_item = structure_item_desc with_range [@@deriving sexp_of]
+type structure_item = structure_item_desc With_range.t [@@deriving sexp_of]
 
 and structure_item_desc =
   | Str_value of rec_flag * value_binding list

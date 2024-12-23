@@ -1,5 +1,7 @@
 (lang dune 3.10)
 
+(using menhir 2.1)
+
 (name mlsus)
 
 (source
@@ -13,4 +15,4 @@
 
 (package
  (name mlsus)
- (depends ocaml dune core ppx_jane))
+ (depends ocaml dune core ppx_jane fmt menhir))

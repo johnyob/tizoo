@@ -1,0 +1,17 @@
+(library
+ (name mlsus_parser)
+ (public_name mlsus.parser)
+ (libraries core mlsus.ast fmt)
+ (preprocess
+  (pps ppx_jane)))
+
+(ocamllex lexer)
+
+(menhir
+ (modules token)
+ (flags --only-tokens))
+
+(menhir
+ (merge_into parser)
+ (modules token parser)
+ (flags --explain --no-dollars --external-tokens Token))

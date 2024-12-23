@@ -59,8 +59,11 @@
 
             # Mlsus dependencies
             ocamlPackages.core
+            ocamlPackages.core_unix
             ocamlPackages.ppx_jane
             ocamlPackages.grace
+            ocamlPackages.fmt
+            ocamlPackages.menhir
           ];
         };
       });

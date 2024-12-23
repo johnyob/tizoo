@@ -1,3 +1,4 @@
 (executable
  (public_name mlsus)
- (name main))
+ (name main)
+ (libraries core core_unix.command_unix mlsus.ast mlsus.parser))

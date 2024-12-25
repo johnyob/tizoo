@@ -1,8 +1,6 @@
 open Core
 
-module Make (X : sig
-    val module_name : string
-  end) : sig
+module type S = sig
   type t = private
     { id : int
     ; name : string
@@ -11,7 +9,11 @@ module Make (X : sig
   val create : ?name:string -> unit -> t
 
   include Identifiable.S with type t := t
-end = struct
+end
+
+module Make (X : sig
+    val module_name : string
+  end) : S = struct
   module T = struct
     type t =
       { id : int

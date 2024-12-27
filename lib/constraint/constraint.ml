@@ -10,7 +10,7 @@ module Type = struct
   type t =
     | Arrow of t * t
     | Tuple of t list
-    | Constr of t list * Constructor_name.t
+    | Constr of t list * Type_name.t
     | Var of Var.t
   [@@deriving sexp]
 
@@ -43,8 +43,10 @@ and scheme =
 let tt = True
 let ff = False
 let ( &~ ) t1 t2 = Conj (t1, t2)
+let all ts = List.fold ts ~init:tt ~f:( &~ )
 let ( =~ ) type1 type2 = Eq (type1, type2)
 let exists type_var t = Exists (type_var, t)
+let exists_many vars in_ = List.fold_right vars ~init:in_ ~f:exists
 let ( #= ) x scheme = x, scheme
 let mono_scheme type_ = { type_vars = []; in_ = tt; type_ }
 let ( @=> ) t1 t2 = t1, t2

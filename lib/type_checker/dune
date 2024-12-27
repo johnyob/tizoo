@@ -1,0 +1,6 @@
+(library
+ (name mlsus_type_checker)
+ (public_name mlsus.type_checker)
+ (libraries core mlsus.ast mlsus.constraint)
+ (preprocess
+  (pps ppx_jane)))

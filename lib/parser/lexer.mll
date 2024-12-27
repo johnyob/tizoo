@@ -5,15 +5,6 @@ open Token
  
 exception Lexer_error of string
 
-let char_unescape c = 
-  match c with
-  | 'n' -> '\n'
-  | 'r' -> '\r'
-  | 'b' -> '\b'
-  | 't' -> '\t'
-  | c -> c
-;;
-
 let keywords = 
   [ "let", LET 
   ; "and", AND 
@@ -56,13 +47,6 @@ let upper_id = upper id_char*
 
 let sign = '-'?
 let int = sign digit+
-
-let frac = '.' digit+
-let float = sign (int? frac | int '.')
-
-let escape_char = '\\'
-let escaped_char = ['n' 't' '"' '\\' '\'' 'b' 'r']
-let ascii_char = [^ '\\' '\'']
 
 rule read = 
   parse
@@ -130,16 +114,6 @@ rule read =
       { CONST_UNIT }
   | int as n
       { CONST_INT (Int.of_string n) }
-  | float as f 
-      { CONST_FLOAT (Float.of_string f) }
-  | "\""
-      { read_string (Buffer.create 17) lexbuf }
-  | "\'" (ascii_char as c) "\'"
-      { CONST_CHAR c }
-  | "\'" 
-    escape_char (escaped_char as c) 
-    "\'"    
-      { CONST_CHAR (char_unescape c) }                         
   
   | space+
       { read lexbuf }
@@ -154,10 +128,6 @@ rule read =
       { LEFT_PAREN }
   | ")"
       { RIGHT_PAREN }
-  | "{"
-      { LEFT_BRACE }
-  | "}"
-      { RIGHT_BRACE }
 
   | eof
       { EOF }
@@ -176,18 +146,3 @@ and read_comment =
       { raise (Lexer_error "Unclosed comment") }
   | _
       { read_comment lexbuf }
-
-and read_string buf = 
-  parse
-  | '"'
-      { CONST_STRING (Buffer.contents buf) }
-  | escape_char (escaped_char as c)          
-      { Buffer.add_char buf (char_unescape c); 
-        read_string buf lexbuf }
-  | [^ '"' '\\']+ as s                             
-      { Buffer.add_string buf s; 
-        read_string buf lexbuf }
-  | _                                       
-      { raise (Lexer_error "Illegal character") }
-  | eof                                     
-      { raise (Lexer_error "String is not terminated") }

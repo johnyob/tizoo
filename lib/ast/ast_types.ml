@@ -4,10 +4,7 @@ open Core
 
 type constant =
   | Const_int of int
-  | Const_float of float
   | Const_bool of bool
-  | Const_char of char
-  | Const_string of string
   | Const_unit
 [@@deriving sexp_of]
 

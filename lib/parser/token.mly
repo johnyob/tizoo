@@ -44,10 +44,7 @@
 %token CONST_TRUE "true"
 %token CONST_FALSE "false"
 %token CONST_UNIT "()"
-%token <char> CONST_CHAR "<char>"
-%token <string> CONST_STRING "<string>"
 %token <int> CONST_INT "<int>"
-%token <float> CONST_FLOAT "<float>"
 
 // identifiers
 %token <string> IDENT "<ident>"
@@ -56,7 +53,5 @@
 // parens
 %token LEFT_PAREN "("
 %token RIGHT_PAREN ")"
-%token LEFT_BRACE "{"
-%token RIGHT_BRACE "}"
 
 %%

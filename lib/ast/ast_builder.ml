@@ -25,7 +25,6 @@ module Pattern = struct
   let const const = Pat_const const
   let tuple pats = Pat_tuple pats
   let constr constr_name arg_pat = Pat_constr (constr_name, arg_pat)
-  let record label_pats = Pat_record label_pats
   let annot pat type_ = Pat_annot (pat, type_)
 end
 
@@ -38,8 +37,6 @@ module Expression = struct
   let exists type_var_names exp = Exp_exists (type_var_names, exp)
   let annot exp type_ = Exp_annot (exp, type_)
   let constr constr_name arg_exp = Exp_constr (constr_name, arg_exp)
-  let record label_exps = Exp_record label_exps
-  let field exp label_name = Exp_field (exp, label_name)
   let tuple exps = Exp_tuple exps
   let match_ exp ~with_ = Exp_match (exp, with_)
   let if_ exp ~then_ ~else_ = Exp_if_then_else (exp, then_, else_)
@@ -62,7 +59,7 @@ module Expression = struct
   ;;
 end
 
-let value_binding pat exp = { value_binding_exp = exp; value_binding_pat = pat }
+let value_binding var exp = { value_binding_exp = exp; value_binding_var = var }
 
 module Structure = struct
   let value value_binding = Str_value value_binding
@@ -74,6 +71,5 @@ module Structure = struct
   ;;
 
   let value_desc ~name ~type_ = { value_name = name; value_type = type_ }
-  let label_decl ~name ~arg = { label_name = name; label_arg = arg }
   let constr_decl ~name ~arg = { constructor_name = name; constructor_arg = arg }
 end

@@ -105,10 +105,14 @@ module S = struct
 end
 
 module Scheme = struct
-  type 'a t = { root : 'a } [@@deriving sexp_of]
+  type 'a t =
+    { root : 'a
+    ; region_node : 'a Region.Tree.sexp_identifier_node option
+    }
+  [@@deriving sexp_of]
 
   let body t = t.root
-  let mono_scheme root = { root }
+  let mono_scheme root = { root; region_node = None }
 end
 
 module Type = struct
@@ -163,12 +167,111 @@ module Type = struct
   ;;
 end
 
+module Generalization_tree : sig
+  (** Generalization can be performed lazily at instantiation. A region [rn] may
+      be generalized provided all of the descendants are generalized. We represent
+      this constraint as a tree of regions that need to be generalized,
+      a {e generalization_tree}. Visiting a region signals that a region must be
+      generalized at some point in the future.
+
+      Note that the above implies that when generalizing the root region, all
+      regions must be generalized. *)
+  type t [@@deriving sexp_of]
+
+  (** [create ()] returns an empty generalization tree. *)
+  val create : unit -> t
+
+  (** [visit_region t rn] visits a region [rn], marking it for generalization in
+      the future. *)
+  val visit_region : t -> Type.region_node -> unit
+
+  (** [generalize_region t rn ~f] generalizes [rn] (and all of its decsendants that are
+      to be generalized). [f rn'] is called for each generalizable region [rn'].
+
+      Safety: [f rn] may update [t], but only the ancestors of [rn] stored in [t] *)
+  val generalize_region : t -> Type.region_node -> f:(Type.region_node -> unit) -> unit
+end = struct
+  type t =
+    { entered_map : (Identifier.t, (Identifier.t, Type.region_node) Hashtbl.t) Hashtbl.t
+    (** Maps node identifiers to immediate entered descendants *)
+    }
+  [@@deriving sexp_of]
+
+  let create () = { entered_map = Hashtbl.create (module Identifier) }
+
+  let rec find_closest_entered_ancestor t (node : Type.region_node) =
+    match node.parent with
+    | None -> None
+    | Some parent ->
+      if Hashtbl.mem t.entered_map parent.id
+      then Some parent
+      else find_closest_entered_ancestor t parent
+  ;;
+
+  let visit_region t (rn : Type.region_node) =
+    if not (Hashtbl.mem t.entered_map rn.id)
+    then (
+      (* Enter [rn] *)
+      let imm_descendants = Hashtbl.create (module Identifier) in
+      Hashtbl.set t.entered_map ~key:rn.id ~data:imm_descendants;
+      match find_closest_entered_ancestor t rn with
+      | None -> ()
+      | Some anc ->
+        (* TODO: optimisation, if we know [rn] is a new region, then we can ignore this *)
+        (* Reparent decendents of [rn] *)
+        let anc_descendants = Hashtbl.find_exn t.entered_map anc.id in
+        Hashtbl.filter_inplace anc_descendants ~f:(fun imm_descendant ->
+          let imm_anc =
+            find_closest_entered_ancestor t imm_descendant
+            |> Option.value_exn ~here:[%here]
+          in
+          if Identifier.(imm_anc.id = rn.id)
+          then (
+            Hashtbl.set imm_descendants ~key:imm_descendant.id ~data:imm_descendant;
+            false)
+          else true);
+        (* Register [rn] as a descendant of [anc] *)
+        Hashtbl.set anc_descendants ~key:rn.id ~data:rn)
+  ;;
+
+  let generalize_region t rn ~f =
+    let rec visit : Type.region_node -> unit =
+      fun rn ->
+      match Hashtbl.find t.entered_map rn.id with
+      | None -> ()
+      | Some imm_descendants ->
+        let rec loop () =
+          match Hashtbl.choose imm_descendants with
+          | None -> ()
+          | Some (rn_id, rn) ->
+            visit rn;
+            Hashtbl.remove imm_descendants rn_id;
+            loop ()
+        in
+        loop ();
+        (* Remove entry :) *)
+        Hashtbl.remove t.entered_map rn.id;
+        (match find_closest_entered_ancestor t rn with
+         | None -> ()
+         | Some anc -> Hashtbl.remove (Hashtbl.find_exn t.entered_map anc.id) rn.id);
+        (* Generalize *)
+        f rn
+    in
+    visit rn
+  ;;
+end
+
 module State = struct
-  type t = { id_source : (Identifier.source[@sexp.opaque]) } [@@deriving sexp_of]
+  type t =
+    { id_source : (Identifier.source[@sexp.opaque])
+    ; generalization_tree : Generalization_tree.t
+    }
+  [@@deriving sexp_of]
 
   let create () =
-    let id_source = Identifier.create_source () in
-    { id_source }
+    { id_source = Identifier.create_source ()
+    ; generalization_tree = Generalization_tree.create ()
+    }
   ;;
 end
 
@@ -203,8 +306,11 @@ end
 
 open State
 
+let visit_region ~state rn = Generalization_tree.visit_region state.generalization_tree rn
+
 let root_region ~state =
   let rn = Tree.create ~id_source:state.id_source (Region.create ()) |> Tree.root in
+  visit_region ~state rn;
   rn
 ;;
 
@@ -212,6 +318,7 @@ let enter_region ~state curr_region =
   let rn =
     Tree.create_node ~id_source:state.id_source ~parent:curr_region (Region.create ())
   in
+  visit_region ~state rn;
   rn
 ;;
 
@@ -234,7 +341,7 @@ let unify ~state ~curr_region type1 type2 =
   Unify.unify ~ctx:unifier_ctx type1 type2
 ;;
 
-let update_types (young_region : Young_region.t) =
+let update_types ~state (young_region : Young_region.t) =
   [%log.global.debug "Updating types" (young_region : Young_region.t)];
   let visited = Hash_set.create (module Identifier) in
   let rec loop type_ r =
@@ -255,6 +362,7 @@ let update_types (young_region : Young_region.t) =
       (* Visiting and updating region *)
       if Tree.Path.compare_node_by_level young_region.path r r' < 0
       then (
+        visit_region ~state r;
         Type.set_region type_ r;
         [%log.global.debug "Setting region to" (r : Type.sexp_identifier_region_node)]);
       (* Handle children *)
@@ -272,7 +380,7 @@ let update_types (young_region : Young_region.t) =
     loop type_ (Type.region_exn ~here:[%here] type_))
 ;;
 
-let generalize_young_region (young_region : Young_region.t) =
+let generalize_young_region ~state (young_region : Young_region.t) =
   [%log.global.debug "Generalizing young region" (young_region : Young_region.t)];
   let young_level = young_region.node.level in
   (* Generalize the region *)
@@ -288,6 +396,7 @@ let generalize_young_region (young_region : Young_region.t) =
        then (
          [%log.global.debug "Type is not generic"];
          (* Register [type_] in the region [r] *)
+         visit_region ~state r;
          Region.(register_type (Tree.region r) type_);
          (* Filter the type from the result list *)
          false)
@@ -303,26 +412,37 @@ let generalize_young_region (young_region : Young_region.t) =
   [%log.global.debug "Updated region" (young_region.region : Type.region)]
 ;;
 
-let update_and_generalize_young_region young_region =
-  update_types young_region;
-  generalize_young_region young_region
+let update_and_generalize_young_region ~state young_region =
+  update_types ~state young_region;
+  generalize_young_region ~state young_region
 ;;
 
-let update_and_generalize (curr_region : Type.region_node) =
+let update_and_generalize ~state (curr_region : Type.region_node) =
   [%log.global.debug "Begin generalization" (curr_region.id : Identifier.t)];
   let young_region = Young_region.of_region_node curr_region in
-  update_and_generalize_young_region young_region;
+  update_and_generalize_young_region ~state young_region;
   [%log.global.debug "End generalization" (curr_region.id : Identifier.t)]
 ;;
 
-let create_scheme root : Type.t Scheme.t = { root }
-
-let exit_region ~curr_region root =
-  update_and_generalize curr_region;
-  create_scheme root
+let create_scheme root region_node : Type.t Scheme.t =
+  { root; region_node = Some region_node }
 ;;
 
-let instantiate ~state ~curr_region ({ root } : Type.t Scheme.t) =
+let force_generalization ~state region_node =
+  Generalization_tree.generalize_region
+    state.generalization_tree
+    region_node
+    ~f:(update_and_generalize ~state)
+;;
+
+let exit_region ~curr_region root = create_scheme root curr_region
+
+let instantiate ~state ~curr_region ({ root; region_node } : Type.t Scheme.t) =
+  [%log.global.debug
+    "Generalization tree @ instantiation"
+      (state.generalization_tree : Generalization_tree.t)];
+  (* Generalize the region (if necessary) *)
+  Option.iter region_node ~f:(force_generalization ~state);
   (* Make the copy of the type *)
   let copies = Hashtbl.create (module Identifier) in
   let rec loop type_ =

@@ -131,7 +131,7 @@ let solve : C.t -> unit Or_error.t =
     solve ~state ~env cst;
     [%log.global.debug "State" (state : State.t)];
     [%log.global.debug "Generalizing root region" (env.curr_region : Type.region_node)];
-    G.update_and_generalize env.curr_region;
+    G.force_generalization ~state env.curr_region;
     [%log.global.debug "Generalized root region" (env.curr_region : Type.region_node)];
     [%log.global.debug "End state" (state : State.t)];
     Ok ()

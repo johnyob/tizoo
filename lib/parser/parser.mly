@@ -195,23 +195,13 @@ atom_type:
   uid = "<upper_ident>"
     { constr_name uid }
 
-%inline label_name:
-  id = "<ident>"
-    { label_name id }
-
 constant:
     int = "<int>"
       { Const_int int }
-  | float = "<float>"
-      { Const_float float }
   | "true"
       { Const_bool true }
   | "false"
       { Const_bool false }
-  | string = "<string>"
-      { Const_string string }
-  | char = "<char>"
-      { Const_char char }
   | "()"
       { Const_unit }
 
@@ -275,10 +265,10 @@ app_expression:
       { Expression.app exp1 exp2 }
 
 value_binding:
-  pat = pattern 
+  var_name = var_name 
   ; "="
   ; exp = seq_expression
-    { value_binding pat exp }
+    { value_binding var_name exp }
 
 cases:
   "("
@@ -298,18 +288,12 @@ atom_expression:
       { Expression.const const }
   | var_name = var_name
       { Expression.var var_name }
-  | exp = atom_expression
-    ; "."
-    ; label_name = label_name
-      { Expression.field exp label_name }
   | constr_name = constr_name
       { Expression.constr constr_name None }
   | "("
     ; exps = separated_nontrivial_list(",", seq_expression)
     ; ")"
       { Expression.tuple exps }
-  | label_exps = record(expression)
-      { Expression.record label_exps }
   | "("
     ; exp = seq_expression
     ; ":"
@@ -320,18 +304,6 @@ atom_expression:
     ; exp = seq_expression
     ; ")"
       { exp }
-
-record(X):
-  "{"
-  ; label_xs = separated_nonempty_list(";", record_assignment(X))
-  ; "}"
-    { label_xs }
-
-record_assignment(X):
-  label_name = label_name
-  ; "="
-  ; x = X
-    { (label_name, x) }
 
 %inline unary_op:
   "-" 
@@ -388,8 +360,6 @@ atom_pattern:
       { Pattern.var var_name }
   | constr_name = constr_name
       { Pattern.constr constr_name None }
-  | label_pats = record(pattern)
-      { Pattern.record label_pats }
   | "("
     ; pats = separated_nontrivial_list(",", pattern)
     ; ")"
@@ -437,17 +407,6 @@ type_decl_kind:
   | "="
     ; constr_decls = preceded_or_separated_nonempty_list("|", constructor_declaration)
       { Type_decl_variant constr_decls }
-  | "="
-    ; "{"
-    ; label_decls = separated_nonempty_list(";", label_declaration)
-    ; "}"
-      { Type_decl_record label_decls }
-      
-label_declaration:
-  name = label_name
-  ; ":"
-  ; arg = core_type
-    { Structure.label_decl ~name ~arg }
 
 constructor_declaration:
   name = constr_name

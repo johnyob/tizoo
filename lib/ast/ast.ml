@@ -24,7 +24,6 @@ type pattern =
   | Pat_const of constant
   | Pat_tuple of pattern list
   | Pat_constr of Constructor_name.t * pattern option
-  | Pat_record of (Label_name.t * pattern) list
   | Pat_annot of pattern * core_type
 [@@deriving sexp_of]
 
@@ -37,8 +36,6 @@ type expression =
   | Exp_exists of Type_var_name.t list * expression
   | Exp_annot of expression * core_type
   | Exp_constr of Constructor_name.t * expression option
-  | Exp_record of (Label_name.t * expression) list
-  | Exp_field of expression * Label_name.t
   | Exp_tuple of expression list
   | Exp_match of expression * case list
   | Exp_if_then_else of expression * expression * expression
@@ -46,7 +43,7 @@ type expression =
 [@@deriving sexp_of]
 
 and value_binding =
-  { value_binding_pat : pattern
+  { value_binding_var : Var_name.t
   ; value_binding_exp : expression
   }
 [@@deriving sexp_of]
@@ -72,14 +69,7 @@ type type_declaration =
 
 and type_decl_kind =
   | Type_decl_variant of constructor_declaration list
-  | Type_decl_record of label_declaration list
   | Type_decl_abstract
-
-and label_declaration =
-  { label_name : Label_name.t
-  ; label_arg : core_type
-  }
-[@@deriving sexp_of]
 
 and constructor_declaration =
   { constructor_name : Constructor_name.t

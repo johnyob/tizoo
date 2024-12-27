@@ -3,10 +3,12 @@
  (name main)
  (libraries
   core
+  async
   core_unix.command_unix
   mlsus.ast
   mlsus.parser
   mlsus.constraint
-  mlsus.type_checker)
+  mlsus.type_checker
+  mlsus.constraint_solver)
  (preprocess
   (pps ppx_jane)))

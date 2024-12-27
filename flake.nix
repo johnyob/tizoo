@@ -60,6 +60,7 @@
             # Mlsus dependencies
             ocamlPackages.core
             ocamlPackages.core_unix
+            ocamlPackages.async
             ocamlPackages.ppx_jane
             ocamlPackages.grace
             ocamlPackages.fmt

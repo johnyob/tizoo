@@ -10,13 +10,13 @@ module Type : sig
   type t =
     | Arrow of t * t (** [tau -> tau] *)
     | Tuple of t list (** [tau1 * ... * taun] *)
-    | Constr of t list * Constructor_name.t (** [(tau1, ..., taun) F] *)
+    | Constr of t list * Type_name.t (** [(tau1, ..., taun) F] *)
     | Var of Var.t (** [ɑ] *)
   [@@deriving sexp]
 
   val var : Var.t -> t
   val ( @-> ) : t -> t -> t
-  val constr : t list -> Constructor_name.t -> t
+  val constr : t list -> Type_name.t -> t
   val tuple : t list -> t
 end
 
@@ -43,8 +43,10 @@ and scheme =
 val tt : t
 val ff : t
 val ( &~ ) : t -> t -> t
+val all : t list -> t
 val ( =~ ) : Type.t -> Type.t -> t
 val exists : Type.Var.t -> t -> t
+val exists_many : Type.Var.t list -> t -> t
 val ( #= ) : Var.t -> scheme -> Var.t * scheme
 
 type unquantified_scheme := t * Type.t

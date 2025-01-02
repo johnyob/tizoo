@@ -4,7 +4,66 @@ open Ast
 open Constraint
 
 module Convert = struct
-  let rec core_type ~env (type_ : Ast.core_type) : Type.t Or_error.t =
+  let type_name ~env (type_name : Type_name.t) : Adt.Type_ident.t Or_error.t =
+    let open Or_error.Let_syntax in
+    let%map type_decl =
+      (* Disambiguate to the first type declaration *)
+      Env.find_type_decl env type_name
+      |> List.hd
+      |> Or_error.of_option
+           ~error:
+             (Error.create_s [%message "Unbound type name" (type_name : Type_name.t)])
+    in
+    type_decl.type_ident
+  ;;
+
+  module Core_type = struct
+    let rec to_type_expr ~env (type_ : Ast.core_type) : Adt.type_expr Or_error.t =
+      let open Adt in
+      let open Or_error.Let_syntax in
+      match type_ with
+      | Type_var v -> return @@ Type_var v
+      | Type_arrow (type1, type2) ->
+        let%map type_expr1 = to_type_expr ~env type1
+        and type_expr2 = to_type_expr ~env type2 in
+        Type_arrow (type_expr1, type_expr2)
+      | Type_tuple types ->
+        let%map type_exprs = types |> List.map ~f:(to_type_expr ~env) |> Or_error.all in
+        Type_tuple type_exprs
+      | Type_constr (arg_types, constr) ->
+        let%bind arg_types =
+          arg_types |> List.map ~f:(to_type_expr ~env) |> Or_error.all
+        in
+        let%map constr = type_name ~env constr in
+        Type_constr (arg_types, constr)
+    ;;
+
+    let rec to_type ~env (type_ : Ast.core_type) : Type.t Or_error.t =
+      let open Or_error.Let_syntax in
+      match type_ with
+      | Type_var v ->
+        let%map v =
+          Env.find_type_var env v
+          |> Or_error.of_option
+               ~error:
+                 (Error.create_s [%message "Unbound type variable" (v : Type_var_name.t)])
+        in
+        Type.var v
+      | Type_arrow (type1, type2) ->
+        let%map type1 = to_type ~env type1
+        and type2 = to_type ~env type2 in
+        Type.(type1 @-> type2)
+      | Type_tuple types ->
+        let%map types = types |> List.map ~f:(to_type ~env) |> Or_error.all in
+        Type.tuple types
+      | Type_constr (arg_types, constr) ->
+        let%bind arg_types = arg_types |> List.map ~f:(to_type ~env) |> Or_error.all in
+        let%map constr = type_name ~env constr in
+        Type.constr arg_types constr
+    ;;
+  end
+
+  let rec type_expr ~env (type_ : Adt.type_expr) : Type.t Or_error.t =
     let open Or_error.Let_syntax in
     match type_ with
     | Type_var v ->
@@ -15,15 +74,17 @@ module Convert = struct
                (Error.create_s [%message "Unbound type variable" (v : Type_var_name.t)])
       in
       Type.var v
-    | Type_arrow (type1, type2) ->
-      let%map type1 = core_type ~env type1
-      and type2 = core_type ~env type2 in
+    | Type_arrow (type_expr1, type_expr2) ->
+      let%map type1 = type_expr ~env type_expr1
+      and type2 = type_expr ~env type_expr2 in
       Type.(type1 @-> type2)
-    | Type_tuple types ->
-      let%map types = types |> List.map ~f:(core_type ~env) |> Or_error.all in
+    | Type_tuple type_exprs ->
+      let%map types = type_exprs |> List.map ~f:(type_expr ~env) |> Or_error.all in
       Type.tuple types
-    | Type_constr (arg_types, constr) ->
-      let%map arg_types = arg_types |> List.map ~f:(core_type ~env) |> Or_error.all in
+    | Type_constr (arg_type_exprs, constr) ->
+      let%map arg_types =
+        arg_type_exprs |> List.map ~f:(type_expr ~env) |> Or_error.all
+      in
       Type.constr arg_types constr
   ;;
 
@@ -39,7 +100,7 @@ module Convert = struct
         let env = Env.add_type_var env ~type_var ~ctype_var in
         env, ctype_var)
     in
-    let%map body = core_type ~env scheme_body in
+    let%map body = Core_type.to_type ~env scheme_body in
     quantifiers, body
   ;;
 end
@@ -51,31 +112,115 @@ let infer_constant const =
   | Const_unit -> Predef.unit
 ;;
 
-let inst_constr ~(env : Env.t) constr_name constr_type' k =
+let infer_constructor_arity constr_arg : Adt.constructor_arity =
+  match constr_arg with
+  | None -> Zero
+  | Some _ -> One
+;;
+
+let infer_constructor ~id_source constr_decl constr_arg' constr_type' =
   let open Or_error.Let_syntax in
-  (* Lookup constructor *)
-  let%bind { constructor_alphas; constructor_arg; constructor_type; constructor_name = _ }
+  let { Adt.constructor_alphas
+      ; constructor_arg
+      ; constructor_type
+      ; constructor_name = _
+      ; constructor_ident = _
+      ; constructor_type_ident = _
+      }
     =
-    Env.find_constr env constr_name
-    |> Or_error.of_option ~error:(Error.create_s [%message "Unbound constructor"])
+    constr_decl
   in
   (* Bind [alphas] existentially *)
   let env, constr_vars =
-    List.fold_map constructor_alphas ~init:env ~f:(fun env type_var ->
-      let ctype_var =
-        Type.Var.create ~id_source:env.id_source ~name:(type_var :> string) ()
-      in
-      Env.add_type_var env ~type_var ~ctype_var, ctype_var)
+    List.fold_map
+      constructor_alphas
+      ~init:(Env.empty ~id_source ())
+      ~f:(fun env type_var ->
+        let ctype_var = Type.Var.create ~id_source ~name:(type_var :> string) () in
+        Env.add_type_var env ~type_var ~ctype_var, ctype_var)
   in
   (* Convert [constructor_arg] and [constructor_type] *)
-  let%bind constr_arg =
-    match constructor_arg with
-    | None -> return None
-    | Some constr_arg -> Convert.core_type ~env constr_arg >>| Option.some
+  let%bind c_constr_arg =
+    match constr_arg', constructor_arg with
+    | None, None -> return tt
+    | Some constr_arg', Some constr_arg ->
+      let%map constr_arg = Convert.type_expr ~env constr_arg in
+      constr_arg' =~ constr_arg
+    | Some _, None ->
+      error_s [%message "Constructor has arity of zero, but argument was given"]
+    | None, Some _ ->
+      error_s [%message "Constructor has arity of one, but no argument was given"]
   in
-  let%bind constr_type = Convert.core_type ~env constructor_type in
-  let%bind result, c = k constr_arg in
-  return (result, exists_many constr_vars @@ (constr_type' =~ constr_type &~ c))
+  let%map constr_type = Convert.type_expr ~env constructor_type in
+  exists_many constr_vars @@ (constr_type' =~ constr_type &~ c_constr_arg)
+;;
+
+let inst_constr
+  ~(env : Env.t)
+  ~constr_name
+  ~(constr_arity : Adt.constructor_arity)
+  ~constr_type
+  k
+  =
+  let open Or_error.Let_syntax in
+  let constr_arg_var = Type.Var.create ~id_source:env.id_source () in
+  let constr_arg =
+    match constr_arity with
+    | Zero -> None
+    | One -> Some (Type.var constr_arg_var)
+  in
+  let%bind c_type =
+    (* Lookup constructor *)
+    match Env.find_constr env constr_name with
+    | [] -> error_s [%message "Unbound constructor" (constr_name : Constructor_name.t)]
+    | [ constr_decl ] ->
+      infer_constructor ~id_source:env.id_source constr_decl constr_arg constr_type
+    | constr_decls ->
+      (* Type-based disambiguation, filter the constructor declarations in the environment with
+         the type identifiers. *)
+      let disambiguate_constr_decls_by_type_ident type_ident =
+        let open Adt in
+        match
+          List.filter constr_decls ~f:(fun constr_decl ->
+            Type_ident.(constr_decl.constructor_type_ident = type_ident))
+        with
+        | [ constr_decl ] -> return constr_decl
+        | [] ->
+          error_s
+            [%message
+              "No constructors with expected type ident"
+                (constr_name : Constructor_name.t)
+                (type_ident : Type_ident.t)]
+        | constr_decls ->
+          error_s
+            [%message
+              "Ambiguous constructors with expected type ident"
+                (constr_name : Constructor_name.t)
+                (constr_decls : constructor_declaration list)
+                (type_ident : Type_ident.t)]
+      in
+      let disambiguate_and_infer_constructor type_ident =
+        let%bind constr_decl = disambiguate_constr_decls_by_type_ident type_ident in
+        infer_constructor ~id_source:env.id_source constr_decl constr_arg constr_type
+      in
+      (match constr_type with
+       | Var constr_type_var ->
+         return
+         @@ match_
+              constr_type_var
+              ~closure:[ constr_type_var; constr_arg_var ]
+              ~with_:(function
+           | Arrow _ | Tuple _ ->
+             (* FIXME: No way to give an error *)
+             ff
+           | Constr (_, type_ident) ->
+             disambiguate_and_infer_constructor type_ident |> Or_error.ok_exn)
+       | Constr (_, type_ident) -> disambiguate_and_infer_constructor type_ident
+       | Arrow _ | Tuple _ ->
+         error_s [%message "Expected variable or constructor type" (constr_type : Type.t)])
+  in
+  let%bind result, c_arg = k constr_arg in
+  return (result, exists constr_arg_var (c_arg &~ c_type))
 ;;
 
 module Pattern = struct
@@ -120,7 +265,11 @@ module Pattern = struct
       infer_pats ~env pats
       @@ fun (f, pat_types, c) -> k (f, c &~ Type.(pat_type =~ tuple pat_types))
     | Pat_constr (constr, arg_pat) ->
-      inst_constr ~env constr pat_type
+      inst_constr
+        ~env
+        ~constr_name:constr
+        ~constr_arity:(infer_constructor_arity arg_pat)
+        ~constr_type:pat_type
       @@ fun arg_type ->
       (match arg_pat, arg_type with
        | Some arg_pat, Some arg_type -> infer_pat ~env arg_pat arg_type k
@@ -129,7 +278,7 @@ module Pattern = struct
          Or_error.error_s
            [%message "Constructor argument mistmatch in pattern" (pat : Ast.pattern)])
     | Pat_annot (pat, annot) ->
-      let%bind type_ = Convert.core_type ~env annot in
+      let%bind type_ = Convert.Core_type.to_type ~env annot in
       infer_pat ~env pat pat_type @@ fun (f, c) -> k (f, pat_type =~ type_ &~ c)
 
   and infer_pats ~env pats k =
@@ -208,7 +357,7 @@ module Expression = struct
     | Exp_exists (type_vars, exp) ->
       let type_vars =
         List.map type_vars ~f:(fun type_var ->
-          type_var, Type.Var.create ~id_source:env.id_source ~name:(type_var :> string) ())
+          type_var, Type.Var.create ~id_source ~name:(type_var :> string) ())
       in
       let env =
         List.fold type_vars ~init:env ~f:(fun env (type_var, ctype_var) ->
@@ -217,7 +366,7 @@ module Expression = struct
       let%map c = infer_exp ~env exp exp_type in
       exists_many (List.map type_vars ~f:snd) c
     | Exp_annot (exp, annot) ->
-      let%bind annot = Convert.core_type ~env annot in
+      let%bind annot = Convert.Core_type.to_type ~env annot in
       let%map c = infer_exp ~env exp exp_type in
       exp_type =~ annot &~ c
     | Exp_tuple exps ->
@@ -235,7 +384,11 @@ module Expression = struct
       let%map c2 = infer_exp ~env exp2 exp_type in
       c1 &~ c2
     | Exp_constr (constr, arg_exp) ->
-      (inst_constr ~env constr exp_type
+      (inst_constr
+         ~env
+         ~constr_name:constr
+         ~constr_arity:(infer_constructor_arity arg_exp)
+         ~constr_type:exp_type
        @@ fun arg_type ->
        match arg_exp, arg_type with
        | Some arg_exp, Some arg_type -> infer_exp ~env arg_exp arg_type >>| fun c -> (), c
@@ -278,7 +431,11 @@ module Expression = struct
   and infer_case ~env { case_lhs = pat; case_rhs = exp } ~lhs_type ~rhs_type =
     bind_pat ~env pat lhs_type ~in_:(fun env -> infer_exp ~env exp rhs_type)
 
-  and infer_value_binding ~env { value_binding_var = var; value_binding_exp = exp } k =
+  and infer_value_binding
+    ~(env : Env.t)
+    { value_binding_var = var; value_binding_exp = exp }
+    k
+    =
     let open Or_error.Let_syntax in
     let exp_type_var = Type.Var.create ~id_source:env.id_source () in
     let exp_type = Type.var exp_type_var in
@@ -302,39 +459,66 @@ module Structure = struct
     let_ cvar #= (poly_scheme (quantifiers @. tt @=> type_)) ~in_:c
   ;;
 
-  let infer_type_decl ~env { type_decl_name; type_decl_params; type_decl_kind } =
-    let type_kind =
-      match type_decl_kind with
-      | Type_decl_abstract -> Adt.Type_abstract
-      | Type_decl_variant constr_decls ->
-        let constructor_type =
-          Type_constr
-            ( List.map type_decl_params ~f:(fun type_var -> Type_var type_var)
-            , type_decl_name )
-        in
-        let constr_decls =
-          List.map constr_decls ~f:(fun { constructor_name; constructor_arg } ->
-            { Adt.constructor_name
-            ; constructor_alphas = type_decl_params
-            ; constructor_type
-            ; constructor_arg
-            })
-        in
-        Type_variant constr_decls
+  let infer_type_decl ~(env : Env.t) { type_decl_name; type_decl_params; type_decl_kind } =
+    let open Or_error.Let_syntax in
+    (* Create a fresh identifier for the type *)
+    let type_ident =
+      Adt.Type_ident.create ~id_source:env.id_source ~name:(type_decl_name :> string) ()
     in
-    Env.add_type_decl env { type_name = type_decl_name; type_kind }
+    (* Convert the declaration kind *)
+    let%map type_kind =
+      match type_decl_kind with
+      | Type_decl_abstract -> return Adt.Type_abstract
+      | Type_decl_variant constr_decls ->
+        Env.declare_type env ~type_name:type_decl_name ~type_ident ~in_:(fun env ->
+          let constructor_type =
+            Adt.Type_constr
+              ( List.map type_decl_params ~f:(fun type_var -> Adt.Type_var type_var)
+              , type_ident )
+          in
+          let%map constr_decls =
+            List.map constr_decls ~f:(fun { constructor_name; constructor_arg } ->
+              let constructor_ident =
+                Adt.Constructor_ident.create
+                  ~id_source:env.id_source
+                  ~name:(constructor_name :> string)
+                  ()
+              in
+              let%map constructor_arg =
+                constructor_arg
+                |> Option.value_map
+                     ~f:(fun arg ->
+                       Convert.Core_type.to_type_expr ~env arg >>| Option.some)
+                     ~default:(return None)
+              in
+              { Adt.constructor_name
+              ; constructor_ident
+              ; constructor_alphas = type_decl_params
+              ; constructor_type
+              ; constructor_arg
+              ; constructor_type_ident = type_ident
+              })
+            |> Or_error.all
+          in
+          Adt.Type_variant constr_decls)
+    in
+    Env.add_type_decl env { type_name = type_decl_name; type_ident; type_kind }
   ;;
 
   let infer_type_decls ~env type_decls =
-    List.fold type_decls ~init:env ~f:(fun env type_decl ->
+    let open Or_error.Let_syntax in
+    (* FIXME: mutually recursive types are broken *)
+    List.fold type_decls ~init:(return env) ~f:(fun env type_decl ->
+      let%bind env = env in
       infer_type_decl ~env type_decl)
   ;;
 
   let rec infer_str ~env (str : Ast.structure) =
+    let open Or_error.Let_syntax in
     match str with
-    | [] -> Ok tt
+    | [] -> return tt
     | Str_type type_decls :: str ->
-      let env = infer_type_decls ~env type_decls in
+      let%bind env = infer_type_decls ~env type_decls in
       infer_str ~env str
     | Str_primitive value_desc :: str ->
       infer_prim ~env value_desc @@ fun env -> infer_str ~env str

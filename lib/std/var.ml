@@ -2,11 +2,11 @@ open Core
 
 module type S = sig
   type t = private
-    { id : int
+    { id : Identifier.t
     ; name : string
     }
 
-  val create : ?name:string -> unit -> t
+  val create : id_source:Identifier.source -> ?name:string -> unit -> t
 
   include Identifiable.S with type t := t
 end
@@ -16,16 +16,13 @@ module Make (X : sig
   end) : S = struct
   module T = struct
     type t =
-      { id : int
+      { id : Identifier.t
       ; name : string
       }
     [@@deriving equal, compare, hash, bin_io, sexp]
 
-    let create =
-      let next_id = ref 0 in
-      fun ?(name = X.module_name) () ->
-        next_id := !next_id + 1;
-        { id = !next_id; name }
+    let create ~id_source ?(name = X.module_name) () =
+      { id = Identifier.create id_source; name }
     ;;
 
     let of_string s = s |> Sexp.of_string |> t_of_sexp

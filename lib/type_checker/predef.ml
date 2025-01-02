@@ -33,11 +33,11 @@ module Env = struct
 
   let wrap k =
     let open Or_error.Let_syntax in
-    let env = Env.empty in
+    let env = Env.empty () in
     let env, bindings =
       List.fold_map v ~init:env ~f:(fun env (var_str, type_) ->
         let var = Var_name.create var_str in
-        let cvar = Var.create ~name:var_str () in
+        let cvar = Var.create ~id_source:env.id_source ~name:var_str () in
         let env = Env.add_var env ~var ~cvar in
         env, (cvar, type_))
     in

@@ -3,14 +3,16 @@ open Ast_types
 open Adt
 
 type t =
-  { constrs : constructor_declaration Constructor_name.Map.t
+  { id_source : Identifier.source
+  ; constrs : constructor_declaration Constructor_name.Map.t
   ; types : type_declaration list Type_name.Map.t
   ; type_vars : Constraint.Type.Var.t Type_var_name.Map.t
   ; vars : Constraint.Var.t Var_name.Map.t
   }
 
-let empty =
-  { constrs = Constructor_name.Map.empty
+let empty () =
+  { id_source = Identifier.create_source ()
+  ; constrs = Constructor_name.Map.empty
   ; type_vars = Type_var_name.Map.empty
   ; types = Type_name.Map.empty
   ; vars = Var_name.Map.empty

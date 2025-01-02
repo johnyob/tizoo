@@ -27,13 +27,15 @@ module Convert = struct
       Type.constr arg_types constr
   ;;
 
-  let core_scheme ~env ({ scheme_quantifiers; scheme_body } : Ast.core_scheme)
+  let core_scheme ~(env : Env.t) ({ scheme_quantifiers; scheme_body } : Ast.core_scheme)
     : (Type.Var.t list * Type.t) Or_error.t
     =
     let open Or_error.Let_syntax in
     let env, quantifiers =
       List.fold_map scheme_quantifiers ~init:env ~f:(fun env type_var ->
-        let ctype_var = Type.Var.create ~name:(type_var :> string) () in
+        let ctype_var =
+          Type.Var.create ~id_source:env.id_source ~name:(type_var :> string) ()
+        in
         let env = Env.add_type_var env ~type_var ~ctype_var in
         env, ctype_var)
     in
@@ -49,7 +51,7 @@ let infer_constant const =
   | Const_unit -> Predef.unit
 ;;
 
-let inst_constr ~env constr_name constr_type' k =
+let inst_constr ~(env : Env.t) constr_name constr_type' k =
   let open Or_error.Let_syntax in
   (* Lookup constructor *)
   let%bind { constructor_alphas; constructor_arg; constructor_type; constructor_name = _ }
@@ -60,7 +62,9 @@ let inst_constr ~env constr_name constr_type' k =
   (* Bind [alphas] existentially *)
   let env, constr_vars =
     List.fold_map constructor_alphas ~init:env ~f:(fun env type_var ->
-      let ctype_var = Type.Var.create ~name:(type_var :> string) () in
+      let ctype_var =
+        Type.Var.create ~id_source:env.id_source ~name:(type_var :> string) ()
+      in
       Env.add_type_var env ~type_var ~ctype_var, ctype_var)
   in
   (* Convert [constructor_arg] and [constructor_type] *)
@@ -94,9 +98,9 @@ module Pattern = struct
     let to_alist t = Map.to_alist t.var_bindings
   end
 
-  let exists' f =
+  let exists' ~(env : Env.t) f =
     let open Or_error.Let_syntax in
-    let a = Type.Var.create () in
+    let a = Type.Var.create ~id_source:env.id_source () in
     let%map result, c = f (Type.var a) in
     result, exists a c
   ;;
@@ -132,7 +136,7 @@ module Pattern = struct
     match pats with
     | [] -> k (Fragment.empty, [], tt)
     | pat :: pats ->
-      exists'
+      exists' ~env
       @@ fun pat_type ->
       infer_pat ~env pat pat_type
       @@ fun (f, c1) ->
@@ -143,9 +147,9 @@ module Pattern = struct
 end
 
 module Expression = struct
-  let exists' f =
+  let exists' ~(env : Env.t) f =
     let open Or_error.Let_syntax in
-    let a = Type.Var.create () in
+    let a = Type.Var.create ~id_source:env.id_source () in
     let%map c = f (Type.var a) in
     exists a c
   ;;
@@ -158,7 +162,7 @@ module Expression = struct
        fragment
        |> Pattern.Fragment.to_alist
        |> List.map ~f:(fun (var, type_) ->
-         var, Var.create ~name:(var :> string) (), type_)
+         var, Var.create ~id_source:env.id_source ~name:(var :> string) (), type_)
      in
      let env =
        List.fold bindings ~init:env ~f:(fun env (var, cvar, _) ->
@@ -184,16 +188,16 @@ module Expression = struct
       return @@ inst var exp_type
     | Exp_const const -> return @@ (exp_type =~ infer_constant const)
     | Exp_fun (pat, exp) ->
-      exists'
+      exists' ~env
       @@ fun a1 ->
-      exists'
+      exists' ~env
       @@ fun a2 ->
       let%map c = bind_pat ~env pat a1 ~in_:(fun env -> infer_exp ~env exp a2) in
       Type.(exp_type =~ a1 @-> a2) &~ c
     | Exp_app (exp1, exp2) ->
-      exists'
+      exists' ~env
       @@ fun a1 ->
-      exists'
+      exists' ~env
       @@ fun a2 ->
       let%bind c1 = infer_exp ~env exp1 a2 in
       let%map c2 = infer_exp ~env exp2 a1 in
@@ -203,7 +207,7 @@ module Expression = struct
     | Exp_exists (type_vars, exp) ->
       let type_vars =
         List.map type_vars ~f:(fun type_var ->
-          type_var, Type.Var.create ~name:(type_var :> string) ())
+          type_var, Type.Var.create ~id_source:env.id_source ~name:(type_var :> string) ())
       in
       let env =
         List.fold type_vars ~init:env ~f:(fun env (type_var, ctype_var) ->
@@ -241,7 +245,7 @@ module Expression = struct
              "Constructor argument mistmatch in expression" (exp : Ast.expression)])
       >>| snd
     | Exp_match (match_exp, cases) ->
-      exists'
+      exists' ~env
       @@ fun match_exp_type ->
       let%bind c1 = infer_exp ~env match_exp match_exp_type in
       let%map c2 = infer_cases ~env cases ~lhs_type:match_exp_type ~rhs_type:exp_type in
@@ -252,7 +256,7 @@ module Expression = struct
     match exps with
     | [] -> k ([], Ok tt)
     | exp :: exps ->
-      exists'
+      exists' ~env
       @@ fun exp_type ->
       let c1 = infer_exp ~env exp exp_type in
       infer_exps ~env exps
@@ -275,10 +279,10 @@ module Expression = struct
 
   and infer_value_binding ~env { value_binding_var = var; value_binding_exp = exp } k =
     let open Or_error.Let_syntax in
-    let exp_type_var = Type.Var.create () in
+    let exp_type_var = Type.Var.create ~id_source:env.id_source () in
     let exp_type = Type.var exp_type_var in
     let%bind c = infer_exp ~env exp exp_type in
-    let cvar = Var.create ~name:(var :> string) () in
+    let cvar = Var.create ~id_source:env.id_source ~name:(var :> string) () in
     let env = Env.add_var env ~var ~cvar in
     let%map c' = k env in
     let_ cvar #= (poly_scheme ([ exp_type_var ] @. c @=> exp_type)) ~in_:c'
@@ -289,7 +293,9 @@ module Structure = struct
   let infer_prim ~env value_desc k =
     let open Or_error.Let_syntax in
     let%bind quantifiers, type_ = Convert.core_scheme ~env value_desc.value_type in
-    let cvar = Var.create ~name:(value_desc.value_name :> string) () in
+    let cvar =
+      Var.create ~id_source:env.id_source ~name:(value_desc.value_name :> string) ()
+    in
     let env = Env.add_var env ~var:value_desc.value_name ~cvar in
     let%map c = k env in
     let_ cvar #= (poly_scheme (quantifiers @. tt @=> type_)) ~in_:c

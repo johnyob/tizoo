@@ -1,7 +1,6 @@
 open Core
 open Mlsus_std
 open Mlsus_constraint
-open Mlsus_ast.Ast_types
 module C = Constraint
 module T = C.Type
 
@@ -20,7 +19,8 @@ let print_solve_result ?(log_level = `Info) cst =
 ;;
 
 let predef_ident =
-  fun name -> Type_name.create name
+  let id_source = Identifier.create_source () in 
+  fun name -> T.Ident.create ~id_source ~name ()
 ;;
 
 let tint_ident = predef_ident "int"
@@ -56,7 +56,7 @@ let%expect_test "Can unsuspend determined (pre)" =
     exists a1
     @@ (T.(var a1 =~ tint)
         &~ match_ a1 ~closure:[] ~with_:(function
-          | Constr ([], constr) when Type_name.(constr = tint_ident) -> tt
+          | Constr ([], constr) when T.Ident.(constr = tint_ident) -> tt
           | _ -> ff))
   in
   print_solve_result cst;
@@ -77,7 +77,7 @@ let%expect_test "Can unsuspend determined (post)" =
   let cst =
     exists a1
     @@ (match_ a1 ~closure:[] ~with_:(function
-          | Constr ([], constr) when Type_name.(constr = tint_ident) -> tt
+          | Constr ([], constr) when T.Ident.(constr = tint_ident) -> tt
           | _ -> ff)
         &~ T.(var a1 =~ tint))
   in

@@ -1,9 +1,9 @@
 open Mlsus_std
-open Mlsus_ast.Ast_types
 
 (** The module [Type] provides the concrete representation of types
     (using constraint type variables) in constraints. *)
 module Type : sig
+  module Ident : Var.S
   module Var : Var.S
 
   module Matchee : sig
@@ -11,7 +11,7 @@ module Type : sig
     type t =
       | Arrow of Var.t * Var.t
       | Tuple of Var.t list
-      | Constr of Var.t list * Type_name.t
+      | Constr of Var.t list * Ident.t
     [@@deriving sexp]
   end
 
@@ -19,13 +19,13 @@ module Type : sig
   type t =
     | Arrow of t * t (** [tau -> tau] *)
     | Tuple of t list (** [tau1 * ... * taun] *)
-    | Constr of t list * Type_name.t (** [(tau1, ..., taun) F] *)
+    | Constr of t list * Ident.t (** [(tau1, ..., taun) F] *)
     | Var of Var.t (** [ɑ] *)
   [@@deriving sexp]
 
   val var : Var.t -> t
   val ( @-> ) : t -> t -> t
-  val constr : t list -> Type_name.t -> t
+  val constr : t list -> Ident.t -> t
   val tuple : t list -> t
 end
 

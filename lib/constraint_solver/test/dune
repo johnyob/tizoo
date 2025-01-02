@@ -1,6 +1,6 @@
 (library
  (name test_constraint_solver)
- (libraries core async mlsus.std mlsus.ast mlsus.constraint mlsus.constraint_solver)
+ (libraries core async mlsus.std mlsus.constraint mlsus.constraint_solver)
  (inline_tests)
  (preprocess
   (pps ppx_jane -log-source-position)))

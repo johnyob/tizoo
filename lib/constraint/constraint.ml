@@ -1,8 +1,15 @@
 open Core
-open Mlsus_ast.Ast_types
 open Mlsus_std
 
 module Type = struct
+  (* TODO():
+
+     This isn't a perfect fit since we can create types with nonsense names
+     But the code re-use is nice :) *)
+  module Ident = Var.Make (struct
+      let module_name = "Type.Ident"
+    end)
+
   module Var = Var.Make (struct
       let module_name = "Type.Var"
     end)
@@ -12,14 +19,14 @@ module Type = struct
     type t =
       | Arrow of Var.t * Var.t
       | Tuple of Var.t list
-      | Constr of Var.t list * Type_name.t
+      | Constr of Var.t list * Ident.t
     [@@deriving sexp]
   end
 
   type t =
     | Arrow of t * t
     | Tuple of t list
-    | Constr of t list * Type_name.t
+    | Constr of t list * Ident.t
     | Var of Var.t
   [@@deriving sexp]
 

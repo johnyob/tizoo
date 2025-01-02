@@ -1,5 +1,4 @@
 open! Import
-open! Ast_types
 
 module type S = Mlsus_unifier.Structure.S
 
@@ -7,7 +6,7 @@ module Former = struct
   type 'a t =
     | Arrow of 'a * 'a
     | Tuple of 'a list
-    | Constr of 'a list * Type_name.t
+    | Constr of 'a list * Type_ident.t
   [@@deriving sexp]
 
   type 'a ctx = unit
@@ -47,7 +46,7 @@ module Former = struct
       (match List.iter2 ts1 ts2 ~f:unify with
        | Ok () -> t1
        | Unequal_lengths -> raise Cannot_merge)
-    | Constr (ts1, constr1), Constr (ts2, constr2) when Type_name.(constr1 = constr2) ->
+    | Constr (ts1, constr1), Constr (ts2, constr2) when Type_ident.(constr1 = constr2) ->
       (match List.iter2 ts1 ts2 ~f:unify with
        | Ok () -> t1
        | Unequal_lengths -> raise Cannot_merge)

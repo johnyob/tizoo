@@ -6,6 +6,15 @@ open Mlsus_ast.Ast_types
 module Type : sig
   module Var : Var.S
 
+  module Matchee : sig
+    (** [t] is a matchee, a partial (shallow) type that is matched on. *)
+    type t =
+      | Arrow of Var.t * Var.t
+      | Tuple of Var.t list
+      | Constr of Var.t list * Type_name.t
+    [@@deriving sexp]
+  end
+
   (** [t] represents the type [tau]. *)
   type t =
     | Arrow of t * t (** [tau -> tau] *)
@@ -22,6 +31,10 @@ end
 
 module Var : Var.S
 
+module Closure : sig
+  type t = { type_vars : Type.Var.Set.t } [@@unboxed] [@@deriving sexp]
+end
+
 (** [t] is a constraint *)
 type t =
   | True (** [true] *)
@@ -31,6 +44,8 @@ type t =
   | Exists of Type.Var.t * t (** [exists overline(a). C]*)
   | Let of Var.t * scheme * t (** [let x = sigma in C] *)
   | Instance of Var.t * Type.t (** [x <= tau] *)
+  | Match of Type.Var.t * Closure.t * (Type.Matchee.t -> t)
+  (** [match a with [overline(a)]f] *)
 
 (** [scheme] is a constrainted type scheme [overline(a). C => tau] *)
 and scheme =
@@ -58,3 +73,4 @@ val mono_scheme : Type.t -> scheme
 val poly_scheme : quantified_scheme -> scheme
 val let_ : Var.t * scheme -> in_:t -> t
 val inst : Var.t -> Type.t -> t
+val match_ : Type.Var.t -> closure:Type.Var.t list -> with_:(Type.Matchee.t -> t) -> t

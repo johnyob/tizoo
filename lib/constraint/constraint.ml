@@ -7,6 +7,15 @@ module Type = struct
       let module_name = "Type.Var"
     end)
 
+  module Matchee = struct
+    (** [t] is a matchee, a partial (shallow) type that is matched on. *)
+    type t =
+      | Arrow of Var.t * Var.t
+      | Tuple of Var.t list
+      | Constr of Var.t list * Type_name.t
+    [@@deriving sexp]
+  end
+
   type t =
     | Arrow of t * t
     | Tuple of t list
@@ -24,6 +33,12 @@ module Var = Var.Make (struct
     let module_name = "Constraint.Var"
   end)
 
+module Closure = struct
+  type t = { type_vars : Type.Var.Set.t } [@@unboxed] [@@deriving sexp]
+
+  let of_list type_vars = { type_vars = Type.Var.Set.of_list type_vars }
+end
+
 type t =
   | True
   | False
@@ -32,6 +47,7 @@ type t =
   | Exists of Type.Var.t * t
   | Let of Var.t * scheme * t
   | Instance of Var.t * Type.t
+  | Match of Type.Var.t * Closure.t * (Type.Matchee.t -> t)
 
 and scheme =
   { type_vars : Type.Var.t list
@@ -54,3 +70,4 @@ let ( @. ) t1 t2 = t1, t2
 let poly_scheme (type_vars, (in_, type_)) = { type_vars; in_; type_ }
 let let_ (x, scheme) ~in_ = Let (x, scheme, in_)
 let inst x type_ = Instance (x, type_)
+let match_ a ~closure ~with_ = Match (a, Closure.of_list closure, with_)

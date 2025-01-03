@@ -6,9 +6,19 @@ module Region = struct
 
       Each type belongs to a 'region', which indicates where those types are
       existentially bound in the solver's stack. *)
-  type 'a t = { mutable types : 'a list } [@@deriving sexp_of]
+  type 'a t =
+    { mutable status : status
+    ; mutable types : 'a list
+    }
+  [@@deriving sexp_of]
 
-  let create () = { types = [] }
+  and status =
+    | Alive (** A region is 'alive' if is yet to be generalized *)
+    | Dead (** A region is 'dead' if it is 'fully' generalized *)
+    | Zombie (** A region is a 'zombie' if is 'partially' generalized *)
+  [@@deriving sexp_of]
+
+  let create () = { types = []; status = Alive }
   let register_type t type_ = t.types <- type_ :: t.types
 
   module Tree = struct
@@ -27,59 +37,133 @@ module Region = struct
   end
 end
 
+module Guard = Identifier
+
+module Partial_status = struct
+  type 'a t =
+    { region_node : 'a Region.Tree.sexp_identifier_node
+    ; instances : (Guard.t * 'a) list
+    ; kind : kind
+    }
+  [@@deriving sexp_of]
+
+  and kind =
+    | Instance
+    | Generic
+  [@@deriving sexp_of]
+
+  let merge_kind k1 k2 =
+    match k1, k2 with
+    | Instance, _ | _, Instance -> Instance
+    | Generic, Generic -> Generic
+  ;;
+
+  let merge t1 t2 =
+    { region_node = Tree.nearest_common_ancestor t1.region_node t2.region_node
+    ; instances = t1.instances @ t2.instances
+    ; kind = merge_kind t1.kind t2.kind
+    }
+  ;;
+end
+
 module Status = struct
   type 'a t =
     | Instance of 'a Region.Tree.sexp_identifier_node
+    | Partial of 'a Partial_status.t
     | Generic
   [@@deriving sexp_of]
 
   let set_region t rn =
     match t with
     | Instance _ -> Instance rn
+    | Partial p -> Partial { p with region_node = rn }
     | Generic -> Generic
   ;;
 
   let region t =
     match t with
     | Instance rn -> Some rn
+    | Partial { region_node = rn; _ } -> Some rn
     | Generic -> None
   ;;
 
-  let merge t1 t2 =
+  let merge t1 t2 ~partial_unify =
     match t1, t2 with
     | Generic, _ | _, Generic -> assert false
+    | Partial p1, Partial p2 -> Partial (Partial_status.merge p1 p2)
+    | Partial { region_node = rn1; instances; kind = _ }, Instance rn2 ->
+      List.iter instances ~f:partial_unify;
+      Instance (Tree.nearest_common_ancestor rn1 rn2)
+    | Instance rn1, Partial { region_node = rn2; instances; kind = _ } ->
+      List.iter instances ~f:partial_unify;
+      Instance (Tree.nearest_common_ancestor rn1 rn2)
     | Instance rn1, Instance rn2 -> Instance (Tree.nearest_common_ancestor rn1 rn2)
   ;;
 
-  let of_region_node region_node = Instance region_node
+  let of_region_node region_node =
+    match (Region.Tree.region region_node).status with
+    | Alive -> Instance region_node
+    | Zombie -> Partial { region_node; instances = []; kind = Instance }
+    | Dead -> assert false
+  ;;
 end
 
 module S = struct
-  module Inner = Structure.First_order (F)
+  module Inner = Structure.Suspended_first_order (F)
 
   type 'a t =
     { id : Identifier.t
     ; inner : 'a Inner.t
+    ; guards : Guard.Set.t
     ; status : 'a Status.t
     }
   [@@deriving sexp_of]
 
-  let create ~id_source ~region_node inner =
+  let create ~id_source ~region_node ?(guards = Guard.Set.empty) inner =
     { id = Identifier.create id_source
     ; status = Status.of_region_node region_node
+    ; guards
     ; inner
     }
   ;;
 
   let generalize t =
+    let if_guarded ~and_ ~then_ ~else_ =
+      let status = if not (Set.is_empty t.guards && and_) then then_ else else_ in
+      { t with status }
+    in
     match t.status with
     | Generic -> assert false
-    | Instance _ -> { t with status = Generic }
+    | Partial { kind = Generic; _ } ->
+      (* [generalize] cannot generalize partial generics. See [partial_generalize] *)
+      t
+    | Partial ({ kind = Instance; instances; _ } as p) ->
+      (* [generalize] cannot generalize partial generics *or* partial instances 
+         that have instances. *)
+      if_guarded
+        ~and_:(List.is_empty instances)
+        ~then_:(Partial { p with kind = Generic })
+        ~else_:Generic
+    | Instance region_node ->
+      if_guarded
+        ~and_:true
+        ~then_:(Partial { region_node; instances = []; kind = Generic })
+        ~else_:Generic
+  ;;
+
+  let partial_generalize t ~f =
+    match t.status with
+    | Partial { kind = Generic; instances; _ } when Set.is_empty t.guards ->
+      (* Generalize a partial generic to a generic when it is unguarded. *)
+      List.iter instances ~f;
+      { t with status = Generic }
+    | _ -> t
   ;;
 
   type 'a ctx =
     { id_source : Identifier.source
     ; curr_region : 'a Region.Tree.node
+    ; schedule_remove_guard : 'a -> Guard.t -> unit
     ; super : 'a Inner.ctx
     }
 
@@ -96,12 +180,24 @@ module S = struct
       Region.(register_type (Tree.region region_node) type_);
       type_
     in
-    let status = Status.merge t1.status t2.status in
+    let partial_unify (guard, inst) =
+      (* It doesn't matter which type ([type1] or [type2]) we pick, since after
+         the current unification is successful, [type1] and [type2] will refer to
+         the *same* type. *)
+      unify type2 inst;
+      ctx.schedule_remove_guard inst guard
+    in
+    let status = Status.merge t1.status t2.status ~partial_unify in
     let inner =
       Inner.merge ~ctx:ctx.super ~create ~unify ~type1 ~type2 t1.inner t2.inner
     in
-    { id = t1.id; status; inner }
+    let guards = Set.union t1.guards t2.guards in
+    { id = t1.id; status; inner; guards }
   ;;
+
+  let add_guard t guard = { t with guards = Set.add t.guards guard }
+  let add_guards t guards = { t with guards = Set.union t.guards guards }
+  let remove_guard t guard = { t with guards = Set.remove t.guards guard }
 end
 
 module Scheme = struct
@@ -165,6 +261,47 @@ module Type = struct
     let structure = structure t in
     set_structure t (S.generalize structure)
   ;;
+
+  let partial_generalize t ~f =
+    let structure = structure t in
+    set_structure t (S.partial_generalize structure ~f)
+  ;;
+
+  let guards t = (structure t).guards
+
+  let add_guard t guard =
+    let structure = structure t in
+    set_structure t (S.add_guard structure guard)
+  ;;
+
+  let add_guards t guards =
+    let structure = structure t in
+    set_structure t (S.add_guards structure guards)
+  ;;
+
+  let remove_guard t guard =
+    let structure = structure t in
+    set_structure t (S.remove_guard structure guard)
+  ;;
+
+  let add_handler t handler =
+    match inner t with
+    | Var svar ->
+      let svar = S.Inner.Var.add_handler svar handler in
+      set_inner t (Var svar)
+    | Structure _ -> assert false
+  ;;
+end
+
+module Suspended_match = struct
+  type t =
+    { matchee : Type.t
+    ; closure : closure
+    ; case : curr_region:Type.region_node -> Type.t Structure.Former.t -> unit
+    }
+  [@@deriving sexp_of]
+
+  and closure = { variables : Type.t list } [@@deriving sexp_of]
 end
 
 module Generalization_tree : sig
@@ -188,16 +325,31 @@ module Generalization_tree : sig
   (** [generalize_region t rn ~f] generalizes [rn] (and all of its decsendants that are
       to be generalized). [f rn'] is called for each generalizable region [rn'].
 
-      Safety: [f rn] may update [t], but only the ancestors of [rn] stored in [t] *)
+      Safety: [f rn] may update [t], but only provided none of the descendants of [rn] 
+      stored in [t] are updated. *)
   val generalize_region : t -> Type.region_node -> f:(Type.region_node -> unit) -> unit
+
+  (** [num_zombie_regions t] returns the number of regions (previously visited and 
+      generalized) with the status [Zombie]. *)
+  val num_zombie_regions : t -> int
 end = struct
   type t =
     { entered_map : (Identifier.t, (Identifier.t, Type.region_node) Hashtbl.t) Hashtbl.t
     (** Maps node identifiers to immediate entered descendants *)
+    ; mutable num_zombie_regions : int
+    (** Tracks the number of zombie regions. If there are remaining zombie regions
+        after generalizing the root region, it implies there exists suspended matches
+        that were never scheduled (e.g. a cycle between matches). *)
     }
   [@@deriving sexp_of]
 
-  let create () = { entered_map = Hashtbl.create (module Identifier) }
+  let incr_zombie_regions t = t.num_zombie_regions <- t.num_zombie_regions + 1
+  let decr_zombie_regions t = t.num_zombie_regions <- t.num_zombie_regions - 1
+  let num_zombie_regions t = t.num_zombie_regions
+
+  let create () =
+    { entered_map = Hashtbl.create (module Identifier); num_zombie_regions = 0 }
+  ;;
 
   let rec find_closest_entered_ancestor t (node : Type.region_node) =
     match node.parent with
@@ -254,10 +406,63 @@ end = struct
         (match find_closest_entered_ancestor t rn with
          | None -> ()
          | Some anc -> Hashtbl.remove (Hashtbl.find_exn t.entered_map anc.id) rn.id);
+        let bft_region_status = (Region.Tree.region rn).status in
         (* Generalize *)
-        f rn
+        f rn;
+        (* Update number of zombie regions *)
+        let aft_region_status = (Region.Tree.region rn).status in
+        (match bft_region_status, aft_region_status with
+         | Alive, Zombie ->
+           [%log.global.debug "Was a zombie region, now is dead"];
+           incr_zombie_regions t
+         | Zombie, Dead ->
+           [%log.global.debug "Was an alive region, now is zombie"];
+           decr_zombie_regions t
+         | Zombie, Zombie | Alive, Dead -> ()
+         | Alive, Alive | Zombie, Alive | Dead, _ ->
+           (* Invalid region status transition *)
+           assert false)
     in
     visit rn
+  ;;
+end
+
+module Scheduler : sig
+  type job = unit -> unit
+
+  (** [t] is a scheduler, a queue of [job]s that are to be run.
+      When a suspended variable is filled, all of the handlers
+      are scheduled. *)
+  type t [@@deriving sexp_of]
+
+  (** [create ()] returns a new scheduler *)
+  val create : unit -> t
+
+  (** [schedule t job] schedules the [job] in the scheduler [t] *)
+  val schedule : t -> job -> unit
+
+  (** [schedule_all t jobs] schedules the [job]s in the scheduler [t]. *)
+  val schedule_all : t -> job list -> unit
+
+  (** [run t] runs {e all} jobs in [t]. *)
+  val run : t -> unit
+end = struct
+  type job = unit -> unit
+  and t = { job_queue : job Queue.t } [@@deriving sexp_of]
+
+  let create () = { job_queue = Queue.create () }
+  let schedule t job = Queue.enqueue t.job_queue job
+  let schedule_all t jobs = Queue.enqueue_all t.job_queue jobs
+
+  let run t =
+    let rec loop () =
+      match Queue.dequeue t.job_queue with
+      | None -> ()
+      | Some job ->
+        job ();
+        loop ()
+    in
+    loop ()
   ;;
 end
 
@@ -265,12 +470,14 @@ module State = struct
   type t =
     { id_source : (Identifier.source[@sexp.opaque])
     ; generalization_tree : Generalization_tree.t
+    ; scheduler : Scheduler.t
     }
   [@@deriving sexp_of]
 
   let create () =
     { id_source = Identifier.create_source ()
     ; generalization_tree = Generalization_tree.create ()
+    ; scheduler = Scheduler.create ()
     }
   ;;
 end
@@ -322,30 +529,135 @@ let enter_region ~state curr_region =
   rn
 ;;
 
-let create_type ~state ~curr_region inner =
+let create_type ~state ~curr_region ?guards inner =
   let type_ =
-    Type.create (S.create ~id_source:state.id_source ~region_node:curr_region inner)
+    Type.create
+      (S.create ~id_source:state.id_source ~region_node:curr_region ?guards inner)
   in
   Region.(register_type (Tree.region curr_region) type_);
   type_
 ;;
 
-let create_var ~state ~curr_region () = create_type ~state ~curr_region Var
+let create_var ~state ~curr_region ?guards () =
+  create_type ~state ~curr_region ?guards (Var Empty)
+;;
 
-let create_former ~state ~curr_region former =
-  create_type ~state ~curr_region (Structure former)
+let create_former ~state ~curr_region ?guards former =
+  create_type ~state ~curr_region ?guards (Structure former)
+;;
+
+let partial_copy ~state ~curr_region type_ =
+  (* Copy generics fully, partial generics are shallowly copied (only fresh vars) *)
+  let copies = Hashtbl.create (module Identifier) in
+  let rec loop type_ =
+    let structure = Type.structure type_ in
+    match structure.status with
+    | Instance _ | Partial { kind = Instance; _ } -> type_
+    | Generic | Partial { kind = Generic; _ } ->
+      let id = structure.id in
+      (try Hashtbl.find_exn copies id with
+       | Not_found_s _ ->
+         let copy = create_var ~state ~curr_region () in
+         Hashtbl.set copies ~key:id ~data:copy;
+         (match structure.status with
+          | Generic -> Type.set_inner copy (S.Inner.map structure.inner ~f:loop)
+          | _ -> ());
+         copy)
+  in
+  loop type_
+;;
+
+exception Cannot_unsuspend_generic
+
+let remove_guard ~state t guard =
+  let visited = Hash_set.create (module Identifier) in
+  let rec loop t =
+    [%log.global.debug "Removing guard" (guard : Identifier.t) (t : Type.t)];
+    let structure = Type.structure t in
+    let id = structure.id in
+    if Hash_set.mem visited id
+    then assert (not (Set.mem structure.guards guard))
+    else (
+      Hash_set.add visited id;
+      if Set.mem structure.guards guard
+      then (
+        [%log.global.debug "Visiting children" (t : Type.t)];
+        let region = Type.region_exn ~here:[%here] t in
+        visit_region ~state region;
+        Type.remove_guard t guard;
+        S.iter structure ~f:loop))
+  in
+  loop t
+;;
+
+let suspend ~state ~curr_region ({ matchee; case; closure } : Suspended_match.t) =
+  let guard = Identifier.create state.id_source in
+  match Type.inner matchee with
+  | Var _ ->
+    Type.add_handler
+      matchee
+      { run =
+          (fun s ->
+            let curr_region =
+              (* Safety: The list of region nodes are on a given path from 
+                         the root. 
+              
+                 This is because [matchee] and [closure.variables] are in the 
+                 same scope (when initially referenced), thus must be on a given 
+                 path from the root. And since unification maintains the invariant:
+                 {v
+                    v1 in rn1 on path p1 && v2 in rn2 on path p2 
+                      => unify(v1, v2) in nearest_common_ancestor(rn1, rn2)
+                         on path longest_common_path(p1, p2)
+                 v} 
+                 We conclude that any type on a given path [p] must be on a 
+                 sub-path of [p]. So it follows that all the nodes are still 
+                 on a given path from the root when the [case] is scheduled. 
+                 The path in particular is defined by [Tree.Path.of_node curr_region]. *)
+              Tree.unsafe_max_by_level
+                (Type.region_exn ~here:[%here] matchee
+                 :: List.map closure.variables ~f:(fun type_ ->
+                   Type.region_exn ~here:[%here] type_))
+            in
+            (* Solve case *)
+            case ~curr_region s;
+            (* Remove guards for each variable in closure *)
+            List.iter closure.variables ~f:(fun type_ -> remove_guard ~state type_ guard))
+      };
+    (* Add guards for each variable in closure *)
+    List.iter closure.variables ~f:(fun type_ -> Type.add_guard type_ guard)
+  | Structure s ->
+    (* Optimisation: Immediately solve the case *)
+    case ~curr_region s
 ;;
 
 let unify ~state ~curr_region type1 type2 =
-  let unifier_ctx : _ S.ctx = { id_source = state.id_source; curr_region; super = () } in
+  let schedule_handler s (handler : _ S.Inner.Var.handler) =
+    Scheduler.schedule state.scheduler (fun () -> handler.run s)
+  in
+  let schedule_remove_guard inst guard =
+    Scheduler.schedule state.scheduler (fun () -> remove_guard ~state inst guard)
+  in
+  let unifier_ctx : _ S.ctx =
+    { id_source = state.id_source
+    ; curr_region
+    ; super = { schedule_handler; super = () }
+    ; schedule_remove_guard
+    }
+  in
   Unify.unify ~ctx:unifier_ctx type1 type2
 ;;
 
 let update_types ~state (young_region : Young_region.t) =
   [%log.global.debug "Updating types" (young_region : Young_region.t)];
   let visited = Hash_set.create (module Identifier) in
-  let rec loop type_ r =
-    [%log.global.debug "Visiting" (type_ : Type.t) (r : Type.sexp_identifier_region_node)];
+  let rec loop type_ guards r =
+    (* Invariant: [r.level <= young_region.level] *)
+    [%log.global.debug
+      "Visiting"
+        (type_ : Type.t)
+        (guards : Guard.Set.t)
+        (r : Type.sexp_identifier_region_node)];
     assert (Tree.Path.mem young_region.path r);
     let r' = Type.region_exn ~here:[%here] type_ in
     [%log.global.debug "Region of type_" (r' : Type.sexp_identifier_region_node)];
@@ -358,10 +670,17 @@ let update_types ~state (young_region : Young_region.t) =
     else (
       [%log.global.debug "Not previously visited" (id : Identifier.t)];
       Hash_set.add visited id;
+      Type.add_guards type_ guards;
       [%log.global.debug "Marked as visited and added guards"];
       (* Visiting and updating region *)
       if Tree.Path.compare_node_by_level young_region.path r r' < 0
       then (
+        (* Safety: [visit_region ~state rn] only updates an ancestor of 
+                   [young_region] in the generalization tree
+                   
+           [r'.level] must be at most [young_region.level]. 
+           Given [r.level < r'.level], it follows that [r < young_region.level]. 
+           Hence [r] must be an ancestor of [young_region] *)
         visit_region ~state r;
         Type.set_region type_ r;
         [%log.global.debug "Setting region to" (r : Type.sexp_identifier_region_node)]);
@@ -373,15 +692,21 @@ let update_types ~state (young_region : Young_region.t) =
         assert (Tree.Level.(r'.level < young_region.node.level)))
       else (
         [%log.global.debug "Type in young region, visiting children" (id : Identifier.t)];
+        let guards = Set.union guards (Type.guards type_) in
         (* [type_] is in current region *)
-        Type.structure type_ |> S.iter ~f:(fun type_ -> loop type_ r)))
+        Type.structure type_ |> S.iter ~f:(fun type_ -> loop type_ guards r)))
   in
   List.iter young_region.region.types ~f:(fun type_ ->
-    loop type_ (Type.region_exn ~here:[%here] type_))
+    loop type_ (Type.guards type_) (Type.region_exn ~here:[%here] type_))
 ;;
 
 let generalize_young_region ~state (young_region : Young_region.t) =
   [%log.global.debug "Generalizing young region" (young_region : Young_region.t)];
+  assert (
+    (* Cannot generalize dead regions *)
+    match young_region.region.status with
+    | Dead -> false
+    | _ -> true);
   let young_level = young_region.node.level in
   (* Generalize the region *)
   let generics =
@@ -396,6 +721,10 @@ let generalize_young_region ~state (young_region : Young_region.t) =
        then (
          [%log.global.debug "Type is not generic"];
          (* Register [type_] in the region [r] *)
+         (* Safety: [visit_region ~state rn] only updates an ancestor of 
+                    [young_region] in the generalization tree
+                    
+            Since [r.level < young_region.level] *)
          visit_region ~state r;
          Region.(register_type (Tree.region r) type_);
          (* Filter the type from the result list *)
@@ -405,11 +734,58 @@ let generalize_young_region ~state (young_region : Young_region.t) =
          assert (Tree.Level.(r.level = young_level));
          (* Make the type generic *)
          Type.generalize type_;
+         (* Cannot generalize unresolved svar *)
+         (match Type.status type_, Type.inner type_ with
+          | Generic, Var (Empty_one_or_more_handlers _) -> raise Cannot_unsuspend_generic
+          | _ -> ());
          true)))
   in
   [%log.global.debug "Generics for young region" (generics : Type.t list)];
-  young_region.region.types <- [];
-  [%log.global.debug "Updated region" (young_region.region : Type.region)]
+  (* Deal with partial generics that can be generalized to full generics *)
+  [%log.global.debug
+    "Partially generalizing remaining partial generics" (generics : Type.t list)];
+  List.iter generics ~f:(fun generic ->
+    [%log.global.debug "Partially generalizing generic" (generic : Type.t)];
+    Type.partial_generalize generic ~f:(fun (guard, instance) ->
+      [%log.global.debug
+        "Generalizing the partial generic, visiting instance"
+          (generic : Type.t)
+          (guard : Guard.t)
+          (instance : Type.t)];
+      (* The partial generic that links to [instance] has been fully generalized :) *)
+      let curr_region = Type.region_exn ~here:[%here] instance in
+      (* Safety: [visit_region ~state rn] only updates an ancestor / sibling / 
+                 descendant of sibling of [young_region] in the generalization tree. 
+         
+         [instance] cannot be created in a descendant of [young_region] (due to scoping). 
+         Only in a sibling / a descendant of a sibling. *)
+      visit_region ~state curr_region;
+      (* Perform a partial copy on the generic to ensure the instance has the generalized
+         structure and then unify *)
+      let copy = partial_copy ~state ~curr_region generic in
+      (* NOTE: Scheduler jobs that are queued by [unify] and [remove_guard] only visit siblings or parents. *)
+      unify ~state ~curr_region copy instance;
+      (* Remove the guard *)
+      remove_guard ~state instance guard);
+    [%log.global.debug "Partially generalized generic" (generic : Type.t)]);
+  [%log.global.debug "Changes" (generics : Type.t list)];
+  (* Update the region to only contain the remaining partial generics *)
+  let partial_generics, generics =
+    List.partition_tf generics ~f:(fun type_ ->
+      match Type.status type_ with
+      | Instance _ | Partial { kind = Instance; _ } ->
+        (* No instances are left in the region *)
+        assert false
+      | Partial { kind = Generic; _ } -> true
+      | Generic -> false)
+  in
+  young_region.region.types <- partial_generics;
+  [%log.global.debug "Generalized generics" (generics : Type.t list)];
+  [%log.global.debug "Updated region" (young_region.region : Type.region)];
+  (* Update region status *)
+  if List.is_empty partial_generics
+  then young_region.region.status <- Dead
+  else young_region.region.status <- Zombie
 ;;
 
 let update_and_generalize_young_region ~state young_region =
@@ -418,6 +794,15 @@ let update_and_generalize_young_region ~state young_region =
 ;;
 
 let update_and_generalize ~state (curr_region : Type.region_node) =
+  (* We run the scheduler at the beginning of generalization to ensure
+     that jobs added by previous generalizations are ran *before* generalizing 
+     the current region. *)
+  [%log.global.debug
+    "Begin generalization (pre scheduler)"
+      (curr_region.id : Identifier.t)
+      (state.generalization_tree : Generalization_tree.t)];
+  [%log.global.debug "Running scheduler" (state.scheduler : Scheduler.t)];
+  Scheduler.run state.scheduler;
   [%log.global.debug "Begin generalization" (curr_region.id : Identifier.t)];
   let young_region = Young_region.of_region_node curr_region in
   update_and_generalize_young_region ~state young_region;
@@ -437,6 +822,28 @@ let force_generalization ~state region_node =
 
 let exit_region ~curr_region root = create_scheme root curr_region
 
+let partial_instantiate ~state ~curr_region type_ =
+  let structure = Type.structure type_ in
+  match structure.status with
+  | Partial { kind = Generic; instances; region_node } ->
+    (* HACK: Should be a fresh identifier, but its likely we can *share*
+       guard ids (making things more efficient) *)
+    let guard = structure.id in
+    let copy = create_var ~state ~curr_region ~guards:(Guard.Set.singleton guard) () in
+    (* Register the instance on the type we're instantiating *)
+    Type.set_structure
+      type_
+      { structure with
+        status =
+          Partial { kind = Generic; region_node; instances = (guard, copy) :: instances }
+      };
+    copy
+  | Generic -> create_var ~state ~curr_region ()
+  | Instance _ | Partial { kind = Instance; _ } ->
+    (* Cannot instantiate instances *)
+    assert false
+;;
+
 let instantiate ~state ~curr_region ({ root; region_node } : Type.t Scheme.t) =
   [%log.global.debug
     "Generalization tree @ instantiation"
@@ -452,7 +859,7 @@ let instantiate ~state ~curr_region ({ root; region_node } : Type.t Scheme.t) =
     | _ ->
       (try Hashtbl.find_exn copies structure.id with
        | Not_found_s _ ->
-         let copy = create_var ~state ~curr_region () in
+         let copy = partial_instantiate ~state ~curr_region type_ in
          Hashtbl.set copies ~key:structure.id ~data:copy;
          Type.set_inner copy (S.Inner.map structure.inner ~f:loop);
          copy)

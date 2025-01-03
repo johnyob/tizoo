@@ -10,19 +10,27 @@ module Token : sig
 end
 
 module Lexer : sig
-  type error = [ `Lexer_error of string ]
+  module Error : sig
+    type t = [ `Lexer_error of string ]
 
-  val read_token : Lexing.lexbuf -> (Token.t, [> error ]) result
-  val read_tokens : ?keep_eof:bool -> Lexing.lexbuf -> (Token.t list, [> error ]) result
+    include Pretty_printer.S with type t := t
+  end
+
+  val read_token : Lexing.lexbuf -> (Token.t, [> Error.t ]) result
+  val read_tokens : ?keep_eof:bool -> Lexing.lexbuf -> (Token.t list, [> Error.t ]) result
 end
 
 module Parser : sig
-  type error =
-    [ Lexer.error
-    | `Parser_error
-    ]
+  module Error : sig
+    type t =
+      [ Lexer.Error.t
+      | `Parser_error
+      ]
 
-  type ('a, 'err) t = Lexing.lexbuf -> ('a, ([> error ] as 'err)) result
+    include Pretty_printer.S with type t := t
+  end
+
+  type ('a, 'err) t = Lexing.lexbuf -> ('a, ([> Error.t ] as 'err)) result
 
   val parse_core_type : (Ast.core_type, 'err) t
   val parse_expression : (Ast.expression, 'err) t

@@ -65,7 +65,14 @@ end
 module Lexer = struct
   exception Error = Lexer.Lexer_error
 
-  type error = [ `Lexer_error of string ]
+  module Error = struct
+    type t = [ `Lexer_error of string ]
+
+    let pp ppf (t : t) =
+      match t with
+      | `Lexer_error message -> Fmt.pf ppf "Lexer error: \"%s\"" message
+    ;;
+  end
 
   let read_token_exn lexbuf = Lexer.read lexbuf
 
@@ -85,12 +92,20 @@ module Lexer = struct
 end
 
 module Parser = struct
-  type error =
-    [ Lexer.error
-    | `Parser_error
-    ]
+  module Error = struct
+    type t =
+      [ Lexer.Error.t
+      | `Parser_error
+      ]
 
-  type ('a, 'err) t = Lexing.lexbuf -> ('a, ([> error ] as 'err)) result
+    let pp ppf t =
+      match t with
+      | `Parser_error -> Fmt.pf ppf "Parser error"
+      | #Lexer.Error.t as lexer_error -> Lexer.Error.pp ppf lexer_error
+    ;;
+  end
+
+  type ('a, 'err) t = Lexing.lexbuf -> ('a, ([> Error.t ] as 'err)) result
 
   let parse ~f lexbuf =
     let open Result in

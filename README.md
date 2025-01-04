@@ -13,11 +13,39 @@
 To build `mlsus` from source, follow these steps:
 ```sh
 # Clone the repository
-git clone https://github.com/johnyob/mlsus.git
+❯ git clone https://github.com/johnyob/mlsus.git && cd mlsus
 # Enter the Nix development environment
-nix develop
+❯ nix develop
 # Build 🚀
-dune build
+❯ dune build
+```
+
+## Quick Start
+
+To get started with type checking some examples, run the command below:
+```sh
+❯ dune exec mlsus -- type-check examples/test.ml
+```
+
+## Commands
+
+For an overview of commands, run:
+```
+❯ dune exec mlsus -- help
+mlsus                                 
+
+  mlsus SUBCOMMAND
+
+=== subcommands ===
+
+  constraint-gen             . Parses [filename] and prints the generated
+                               constraint (formatted as a sexp).
+  lex                        . Lexes [filename] and prints the tokens.
+  parse                      . Parses [filename] and prints the program
+                               (formatted as a sexp).
+  type-check                 . Type checks [filename].
+  version                    . print version information
+  help                       . explain a given subcommand (perhaps recursively)
 ```
 
 ## License 

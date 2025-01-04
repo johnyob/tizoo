@@ -11,8 +11,10 @@
 
 (maintainers "ajo41@cam.ac.uk")
 
-(license MIT)
+(license GPL-3.0-only)
+
+(generate_opam_files true)
 
 (package
  (name mlsus)
- (depends ocaml dune core ppx_jane fmt menhir))
+ (depends ocaml dune core core_unix async ppx_jane fmt menhir))

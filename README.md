@@ -20,6 +20,20 @@ To build `mlsus` from source, follow these steps:
 ❯ dune build
 ```
 
+We strongly recommend using Nix. Nevertheless, `mlsus` can be built using `opam` and `dune` directly. 
+Proceed by creating a fresh opam switch by running the following:
+```sh
+# Clone the repository
+❯ git clone https://github.com/johnyob/mlsus.git && cd mlsus
+# Create switch 🎛️
+❯ opam switch create . --no-install
+❯ eval $(opam config env)
+# Install dependencies 📦
+❯ opam install -y --deps-only --with-test --with-doc .
+# Build 🚀
+❯ dune build
+```
+
 ## Quick Start
 
 To get started with type checking some examples, run the command below:

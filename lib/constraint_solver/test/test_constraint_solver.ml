@@ -239,8 +239,7 @@ let%expect_test "Partial generic becomes instance" =
   print_solve_result cst;
   [%expect
     {|
-    (num_zombie_regions(num_zombie_regions 1))
-    ("Constraint is unsatisfiable"
+    ("Constraint is satisfiable"
      (cst
       (Exists ((id 0) (name Type.Var))
        (Exists ((id 1) (name Type.Var))
@@ -254,10 +253,7 @@ let%expect_test "Partial generic becomes instance" =
          (Conj
           (Instance ((id 3) (name Constraint.Var))
            (Constr () ((id 0) (name int))))
-          (Eq (Var ((id 0) (name Type.Var))) (Constr () ((id 1) (name string)))))))))
-     (err
-      ("Failed to solve constraint"
-       (exn (Mlsus_constraint_solver__Generalization.Cannot_unsuspend_generic)))))
+          (Eq (Var ((id 0) (name Type.Var))) (Constr () ((id 1) (name string))))))))))
     |}]
 ;;
 
@@ -285,8 +281,7 @@ let%expect_test "Partial generic becomes generic" =
   print_solve_result cst;
   [%expect
     {|
-    (num_zombie_regions(num_zombie_regions 2))
-    ("Constraint is unsatisfiable"
+    ("Constraint is satisfiable"
      (cst
       (Exists ((id 0) (name Type.Var))
        (Let ((id 3) (name Constraint.Var))
@@ -303,9 +298,60 @@ let%expect_test "Partial generic becomes generic" =
           (Instance ((id 3) (name Constraint.Var))
            (Arrow (Constr () ((id 1) (name string)))
             (Constr () ((id 1) (name string))))))
-         (Eq (Var ((id 0) (name Type.Var))) (Constr () ((id 0) (name int))))))))
-     (err
-      ("Failed to solve constraint"
-       (exn (Mlsus_constraint_solver__Generalization.Cannot_unsuspend_generic)))))
+         (Eq (Var ((id 0) (name Type.Var))) (Constr () ((id 0) (name int)))))))))
+    |}]
+;;
+
+let%expect_test "Propagating changes during partial generalization" =
+  let open C in
+  let id_source = Identifier.create_source () in
+  let a1 = T.Var.create ~id_source () in
+  let a2 = T.Var.create ~id_source () in
+  let a3 = T.Var.create ~id_source () in
+  let a4 = T.Var.create ~id_source () in
+  let x1 = Var.create ~id_source () in
+  let cst =
+    exists_many [ a1; a2 ]
+    @@ let_
+         x1
+         #= (poly_scheme
+               ([ a3 ]
+                @. ((* This match forces [a3] to be partially generic *)
+                      match_ a1 ~closure:[ a3 ] ~with_:(fun _ -> tt)
+                    &~ (* This match is resolved after [a2] is unified with int.
+                          But since [a3] is still partially generic, the structure of [a3] is
+                          not propagated to [a4]. This causes a bug. *)
+                    match_ a2 ~closure:[ a3 ] ~with_:(fun _ -> T.(var a3 =~ tint)))
+                @=> T.var a3))
+         ~in_:
+           (exists a4
+            @@ (inst x1 (T.var a4)
+                &~ T.(var a2 =~ tint)
+                &~ match_ a4 ~closure:[ a1 ] ~with_:(fun _ -> T.(var a1 =~ tint))))
+  in
+  print_solve_result cst;
+  [%expect
+    {|
+    ("Constraint is satisfiable"
+     (cst
+      (Exists ((id 0) (name Type.Var))
+       (Exists ((id 1) (name Type.Var))
+        (Let ((id 4) (name Constraint.Var))
+         ((type_vars (((id 2) (name Type.Var))))
+          (in_
+           (Conj
+            (Match ((id 0) (name Type.Var))
+             ((type_vars (((id 2) (name Type.Var))))) <fun>)
+            (Match ((id 1) (name Type.Var))
+             ((type_vars (((id 2) (name Type.Var))))) <fun>)))
+          (type_ (Var ((id 2) (name Type.Var)))))
+         (Exists ((id 3) (name Type.Var))
+          (Conj
+           (Conj
+            (Instance ((id 4) (name Constraint.Var))
+             (Var ((id 3) (name Type.Var))))
+            (Eq (Var ((id 1) (name Type.Var))) (Constr () ((id 0) (name int)))))
+           (Match ((id 3) (name Type.Var))
+            ((type_vars (((id 0) (name Type.Var))))) <fun>))))))))
     |}]
 ;;

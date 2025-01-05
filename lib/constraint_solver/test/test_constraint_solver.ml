@@ -44,9 +44,7 @@ let%expect_test "Cannot unsuspend undetermined" =
       (Exists ((id 0) (name Type.Var))
        (Match ((id 0) (name Type.Var)) ((type_vars (((id 0) (name Type.Var)))))
         <fun>)))
-     (err
-      ("Failed to solve constraint"
-       (exn (Mlsus_constraint_solver__Generalization.Cannot_unsuspend_generic)))))
+     (err ("Failed to solve constraint" (err Cannot_resume_suspended_generic))))
     |}]
 ;;
 
@@ -118,9 +116,7 @@ let%expect_test "Cannot unsuspend circular dependencies" =
           <fun>)
          (Match ((id 1) (name Type.Var)) ((type_vars (((id 0) (name Type.Var)))))
           <fun>)))))
-     (err
-      ("Failed to solve constraint"
-       (exn (Mlsus_constraint_solver__Generalization.Cannot_unsuspend_generic)))))
+     (err ("Failed to solve constraint" (err Cannot_resume_suspended_generic))))
     |}]
 ;;
 

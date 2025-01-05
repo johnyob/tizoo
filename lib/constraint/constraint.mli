@@ -1,3 +1,4 @@
+open Core
 open Mlsus_std
 
 (** The module [Type] provides the concrete representation of types
@@ -38,7 +39,7 @@ end
 (** [t] is a constraint *)
 type t =
   | True (** [true] *)
-  | False (** [false] *)
+  | False of Error.t (** [false] *)
   | Conj of t * t (** [C1 /\ C2] *)
   | Eq of Type.t * Type.t (** [tau1 = tau2] *)
   | Exists of Type.Var.t * t (** [exists overline(a). C]*)
@@ -56,7 +57,7 @@ and scheme =
 [@@deriving sexp]
 
 val tt : t
-val ff : t
+val ff : Error.t -> t
 val ( &~ ) : t -> t -> t
 val all : t list -> t
 val ( =~ ) : Type.t -> Type.t -> t

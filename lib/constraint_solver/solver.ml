@@ -92,8 +92,8 @@ let exists ~(state : State.t) ~env ~type_var =
     ~type_:(G.create_var ~state ~curr_region:env.curr_region ())
 ;;
 
-exception Unsatisfiable
-exception Cannot_unify
+exception Unsatisfiable of Error.t
+exception Cannot_unify 
 
 let unify ~(state : State.t) ~(env : Env.t) gtype1 gtype2 =
   [%log.global.debug
@@ -112,7 +112,7 @@ let rec solve : state:State.t -> env:Env.t -> C.t -> unit =
   let self ~state ?(env = env) cst = solve ~state ~env cst in
   match cst with
   | True -> ()
-  | False -> raise Unsatisfiable
+  | False err -> raise (Unsatisfiable err)
   | Conj (cst1, cst2) ->
     [%log.global.debug "Solving conj lhs"];
     self ~state cst1;

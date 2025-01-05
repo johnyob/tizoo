@@ -98,7 +98,11 @@ exception Cannot_unify
 let unify ~(state : State.t) ~(env : Env.t) gtype1 gtype2 =
   [%log.global.debug
     "Unify" (state : State.t) (env : Env.t) (gtype1 : Type.t) (gtype2 : Type.t)];
-  try G.unify ~state ~curr_region:env.curr_region gtype1 gtype2 with
+  try
+    G.unify ~state ~curr_region:env.curr_region gtype1 gtype2;
+    [%log.global.debug "(Unify) Running scheduler" (state.scheduler : G.Scheduler.t)];
+    G.Scheduler.run state.scheduler
+  with
   | G.Unify.Unify _ -> raise Cannot_unify
 ;;
 
@@ -203,6 +207,8 @@ let solve : C.t -> unit Or_error.t =
     G.force_generalization ~state env.curr_region;
     [%log.global.debug "Generalized root region" (env.curr_region : Type.region_node)];
     [%log.global.debug "End state" (state : State.t)];
+    (* No more regions to generalize *)
+    assert (G.Generalization_tree.is_empty state.generalization_tree);
     let num_zombie_regions =
       G.Generalization_tree.num_zombie_regions state.generalization_tree
     in

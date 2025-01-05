@@ -4,6 +4,18 @@ module G = Generalization
 module Type = G.Type
 module State = G.State
 
+module Error = struct
+  type t =
+    | Unsatisfiable of Error.t
+    | Unbound_type_var of C.Type.Var.t
+    | Unbound_var of C.Var.t
+    | Cannot_unify of Decoded_type.t * Decoded_type.t
+    | Cannot_resume_suspended_generic
+  [@@deriving sexp]
+end
+
+exception Error of Error.t
+
 module Env = struct
   type t =
     { type_vars : Type.t C.Type.Var.Map.t
@@ -24,8 +36,16 @@ module Env = struct
     { t with expr_vars = Map.set t.expr_vars ~key:var ~data:type_ }
   ;;
 
-  let find_type_var t type_var = Map.find_exn t.type_vars type_var
-  let find_var t expr_var = Map.find_exn t.expr_vars expr_var
+  let find_type_var t type_var =
+    try Map.find_exn t.type_vars type_var with
+    | _ -> raise (Error (Unbound_type_var type_var))
+  ;;
+
+  let find_var t expr_var =
+    try Map.find_exn t.expr_vars expr_var with
+    | _ -> raise (Error (Unbound_var expr_var))
+  ;;
+
   let enter_region ~state t = { t with curr_region = G.enter_region ~state t.curr_region }
   let exit_region ~state:_ t root = G.exit_region ~curr_region:t.curr_region root
 
@@ -92,9 +112,6 @@ let exists ~(state : State.t) ~env ~type_var =
     ~type_:(G.create_var ~state ~curr_region:env.curr_region ())
 ;;
 
-exception Unsatisfiable of Error.t
-exception Cannot_unify 
-
 let unify ~(state : State.t) ~(env : Env.t) gtype1 gtype2 =
   [%log.global.debug
     "Unify" (state : State.t) (env : Env.t) (gtype1 : Type.t) (gtype2 : Type.t)];
@@ -103,7 +120,9 @@ let unify ~(state : State.t) ~(env : Env.t) gtype1 gtype2 =
     [%log.global.debug "(Unify) Running scheduler" (state.scheduler : G.Scheduler.t)];
     G.Scheduler.run state.scheduler
   with
-  | G.Unify.Unify _ -> raise Cannot_unify
+  | G.Unify.Unify (gtype1, gtype2) ->
+    let decoder = Decoded_type.Decoder.create () in
+    raise (Error (Cannot_unify (decoder gtype1, decoder gtype2)))
 ;;
 
 let rec solve : state:State.t -> env:Env.t -> C.t -> unit =
@@ -112,7 +131,7 @@ let rec solve : state:State.t -> env:Env.t -> C.t -> unit =
   let self ~state ?(env = env) cst = solve ~state ~env cst in
   match cst with
   | True -> ()
-  | False err -> raise (Unsatisfiable err)
+  | False err -> raise (Error (Unsatisfiable err))
   | Conj (cst1, cst2) ->
     [%log.global.debug "Solving conj lhs"];
     self ~state cst1;
@@ -215,8 +234,12 @@ let solve : C.t -> unit Or_error.t =
     if num_zombie_regions > 0
     then (
       [%log.global.error "num_zombie_regions" (num_zombie_regions : int)];
-      raise G.Cannot_unsuspend_generic);
+      raise (Error Cannot_resume_suspended_generic));
     Ok ()
   with
+  | Error err -> Or_error.error_s [%message "Failed to solve constraint" (err : Error.t)]
+  | G.Cannot_unsuspend_generic ->
+    let err = Error.Cannot_resume_suspended_generic in
+    Or_error.error_s [%message "Failed to solve constraint" (err : Error.t)]
   | exn -> Or_error.error_s [%message "Failed to solve constraint" (exn : exn)]
 ;;

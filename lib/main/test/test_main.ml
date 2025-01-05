@@ -762,7 +762,13 @@ let%expect_test "" =
   [%expect
     {|
     ("Failed to solve constraint"
-     (exn (Mlsus_constraint_solver__Solver.Cannot_unify)))
+     (err
+      (Cannot_unify
+       (Arrow (Var ((id 3) (name Decoded_type.Var)))
+        (Var ((id 2) (name Decoded_type.Var))))
+       (Tuple
+        ((Var ((id 0) (name Decoded_type.Var)))
+         (Var ((id 1) (name Decoded_type.Var))))))))
     |}]
 ;;
 
@@ -776,7 +782,11 @@ let%expect_test "" =
   [%expect
     {|
     ("Failed to solve constraint"
-     (exn (Mlsus_constraint_solver__Solver.Cannot_unify)))
+     (err
+      (Cannot_unify
+       (Arrow (Var ((id 1) (name Decoded_type.Var)))
+        (Var ((id 0) (name Decoded_type.Var))))
+       (Constr () ((id 2) (name Stdlib.unit))))))
     |}]
 ;;
 
@@ -817,8 +827,7 @@ let%expect_test "" =
   [%expect
     {|
     (num_zombie_regions(num_zombie_regions 1))
-    ("Failed to solve constraint"
-     (exn (Mlsus_constraint_solver__Generalization.Cannot_unsuspend_generic)))
+    ("Failed to solve constraint" (err Cannot_resume_suspended_generic))
     |}]
 ;;
 

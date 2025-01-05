@@ -9,6 +9,8 @@ let () =
   For_testing.use_test_output ()
 ;;
 
+let unsat_err = Error.create_s [%message "Constraint is unsatisfiable"]
+
 let print_solve_result ?(log_level = `Info) cst =
   Async.Log.Global.set_level log_level;
   let result = Mlsus_constraint_solver.solve cst in
@@ -57,7 +59,7 @@ let%expect_test "Can unsuspend determined (pre)" =
     @@ (T.(var a1 =~ tint)
         &~ match_ a1 ~closure:[] ~with_:(function
           | Constr ([], constr) when T.Ident.(constr = tint_ident) -> tt
-          | _ -> ff))
+          | _ -> ff unsat_err))
   in
   print_solve_result cst;
   [%expect
@@ -78,7 +80,7 @@ let%expect_test "Can unsuspend determined (post)" =
     exists a1
     @@ (match_ a1 ~closure:[] ~with_:(function
           | Constr ([], constr) when T.Ident.(constr = tint_ident) -> tt
-          | _ -> ff)
+          | _ -> ff unsat_err)
         &~ T.(var a1 =~ tint))
   in
   print_solve_result cst;

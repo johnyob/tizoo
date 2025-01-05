@@ -48,7 +48,7 @@ end
 
 type t =
   | True
-  | False
+  | False of Error.t
   | Conj of t * t
   | Eq of Type.t * Type.t
   | Exists of Type.Var.t * t
@@ -64,7 +64,7 @@ and scheme =
 [@@deriving sexp]
 
 let tt = True
-let ff = False
+let ff err = False err
 let ( &~ ) t1 t2 = Conj (t1, t2)
 let all ts = List.fold ts ~init:tt ~f:( &~ )
 let ( =~ ) type1 type2 = Eq (type1, type2)

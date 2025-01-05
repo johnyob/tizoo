@@ -225,11 +225,16 @@ let inst_constr
               constr_type_var
               ~closure:[ constr_type_var; constr_arg_var ]
               ~with_:(function
-           | Arrow _ | Tuple _ ->
-             (* FIXME: No way to give an error *)
+           | (Arrow _ | Tuple _) as matchee ->
              ff
+               (Error.create_s
+                  [%message
+                    "Expected a constructor type, but got arrow/tuple"
+                      (matchee : Type.Matchee.t)])
            | Constr (_, type_ident) ->
-             disambiguate_and_infer_constructor type_ident |> Or_error.ok_exn)
+             (match disambiguate_and_infer_constructor type_ident with
+              | Ok cst -> cst
+              | Error err -> ff err))
        | Constr (_, type_ident) -> disambiguate_and_infer_constructor type_ident
        | Arrow _ | Tuple _ ->
          error_s [%message "Expected variable or constructor type" (constr_type : Type.t)])

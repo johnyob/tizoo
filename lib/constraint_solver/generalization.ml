@@ -344,26 +344,26 @@ end = struct
   type t =
     { entered_map : (Identifier.t, (Identifier.t, Type.region_node) Hashtbl.t) Hashtbl.t
     (** Maps node identifiers to immediate entered descendants *)
-    ; mutable num_partially_generalized_regions : int
-    (** Tracks the number of partially generalized regions. If there are remaining 
-        partially generalized regions after generalizing the root region, it implies 
+    ; partially_generalized_regions : (Identifier.t, Type.region_node) Hashtbl.t
+    (** Tracks the partially generalized regions. If there are remaining
+        partially generalized regions after generalizing the root region, it implies
         there exists suspended matches that were never scheduled (e.g. a cycle between matches). *)
     }
   [@@deriving sexp_of]
 
-  let incr_partially_generalized_regions t =
-    t.num_partially_generalized_regions <- t.num_partially_generalized_regions + 1
+  let incr_partially_generalized_regions t (rn : Type.region_node) =
+    Hashtbl.set t.partially_generalized_regions ~key:rn.id ~data:rn
   ;;
 
-  let decr_partially_generalized_regions t =
-    t.num_partially_generalized_regions <- t.num_partially_generalized_regions - 1
+  let decr_partially_generalized_regions t (rn : Type.region_node) =
+    Hashtbl.remove t.partially_generalized_regions rn.id
   ;;
 
-  let num_partially_generalized_regions t = t.num_partially_generalized_regions [@@inline]
+  let num_partially_generalized_regions t = Hashtbl.length t.partially_generalized_regions
 
   let create () =
     { entered_map = Hashtbl.create (module Identifier)
-    ; num_partially_generalized_regions = 0
+    ; partially_generalized_regions = Hashtbl.create (module Identifier)
     }
   ;;
 
@@ -439,11 +439,11 @@ end = struct
         (match bft_region_status, aft_region_status with
          | Not_generalized, Partially_generalized ->
            [%log.global.debug "Was a un-generalized region, now is partially generalized"];
-           incr_partially_generalized_regions t
+           incr_partially_generalized_regions t rn
          | Partially_generalized, Fully_generalized ->
            [%log.global.debug
              "Was an partially generalized region, now is fully generalized"];
-           decr_partially_generalized_regions t
+           decr_partially_generalized_regions t rn
          | Partially_generalized, Partially_generalized
          | Not_generalized, Fully_generalized -> ()
          | _, Not_generalized | Fully_generalized, _ ->

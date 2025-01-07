@@ -237,7 +237,8 @@ let solve : C.t -> unit Or_error.t =
     in
     if num_partially_generalized_regions > 0
     then (
-      [%log.global.error "num_partially_generalized_regions" (num_partially_generalized_regions : int)];
+      [%log.global.error
+        "num_partially_generalized_regions" (num_partially_generalized_regions : int)];
       raise (Error Cannot_resume_match_due_to_cycle));
     Ok ()
   with

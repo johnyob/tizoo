@@ -232,12 +232,12 @@ let solve : C.t -> unit Or_error.t =
     [%log.global.debug "End state" (state : State.t)];
     (* No more regions to generalize *)
     assert (G.Generalization_tree.is_empty state.generalization_tree);
-    let num_zombie_regions =
-      G.Generalization_tree.num_zombie_regions state.generalization_tree
+    let num_partially_generalized_regions =
+      G.Generalization_tree.num_partially_generalized_regions state.generalization_tree
     in
-    if num_zombie_regions > 0
+    if num_partially_generalized_regions > 0
     then (
-      [%log.global.error "num_zombie_regions" (num_zombie_regions : int)];
+      [%log.global.error "num_partially_generalized_regions" (num_partially_generalized_regions : int)];
       raise (Error Cannot_resume_match_due_to_cycle));
     Ok ()
   with

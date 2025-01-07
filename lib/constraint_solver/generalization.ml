@@ -13,12 +13,12 @@ module Region = struct
   [@@deriving sexp_of]
 
   and status =
-    | Alive (** A region is 'alive' if is yet to be generalized *)
-    | Dead (** A region is 'dead' if it is 'fully' generalized *)
-    | Zombie (** A region is a 'zombie' if is 'partially' generalized *)
+    | Not_generalized (** A region that is yet to be generalized *)
+    | Partially_generalized (** A region that is 'partially' generalized *)
+    | Fully_generalized (** A region that is ('fully') generalized *)
   [@@deriving sexp_of]
 
-  let create () = { types = []; status = Alive }
+  let create () = { types = []; status = Not_generalized }
   let register_type t type_ = t.types <- type_ :: t.types
 
   module Tree = struct
@@ -102,9 +102,9 @@ module Status = struct
 
   let of_region_node region_node =
     match (Region.Tree.region region_node).status with
-    | Alive -> Instance region_node
-    | Zombie -> Partial { region_node; instances = []; kind = Instance }
-    | Dead -> assert false
+    | Not_generalized -> Instance region_node
+    | Partially_generalized -> Partial { region_node; instances = []; kind = Instance }
+    | Fully_generalized -> assert false
   ;;
 end
 
@@ -337,26 +337,34 @@ module Generalization_tree : sig
     -> finally:(unit -> unit)
     -> unit
 
-  (** [num_zombie_regions t] returns the number of regions (previously visited and
-      generalized) with the status [Zombie]. *)
-  val num_zombie_regions : t -> int
+  (** [num_partially_generalized_regions t] returns the number of regions
+      (previously visited and generalized) with the status [Partially_generalized]. *)
+  val num_partially_generalized_regions : t -> int
 end = struct
   type t =
     { entered_map : (Identifier.t, (Identifier.t, Type.region_node) Hashtbl.t) Hashtbl.t
     (** Maps node identifiers to immediate entered descendants *)
-    ; mutable num_zombie_regions : int
-    (** Tracks the number of zombie regions. If there are remaining zombie regions
-        after generalizing the root region, it implies there exists suspended matches
-        that were never scheduled (e.g. a cycle between matches). *)
+    ; mutable num_partially_generalized_regions : int
+    (** Tracks the number of partially generalized regions. If there are remaining 
+        partially generalized regions after generalizing the root region, it implies 
+        there exists suspended matches that were never scheduled (e.g. a cycle between matches). *)
     }
   [@@deriving sexp_of]
 
-  let incr_zombie_regions t = t.num_zombie_regions <- t.num_zombie_regions + 1
-  let decr_zombie_regions t = t.num_zombie_regions <- t.num_zombie_regions - 1
-  let num_zombie_regions t = t.num_zombie_regions
+  let incr_partially_generalized_regions t =
+    t.num_partially_generalized_regions <- t.num_partially_generalized_regions + 1
+  ;;
+
+  let decr_partially_generalized_regions t =
+    t.num_partially_generalized_regions <- t.num_partially_generalized_regions - 1
+  ;;
+
+  let num_partially_generalized_regions t = t.num_partially_generalized_regions [@@inline]
 
   let create () =
-    { entered_map = Hashtbl.create (module Identifier); num_zombie_regions = 0 }
+    { entered_map = Hashtbl.create (module Identifier)
+    ; num_partially_generalized_regions = 0
+    }
   ;;
 
   let is_empty t = Hashtbl.is_empty t.entered_map
@@ -426,17 +434,19 @@ end = struct
         (* Generalize *)
         let bft_region_status = (Region.Tree.region rn).status in
         f rn;
-        (* Update number of zombie regions *)
+        (* Update number of partially_generalized regions *)
         let aft_region_status = (Region.Tree.region rn).status in
         (match bft_region_status, aft_region_status with
-         | Alive, Zombie ->
-           [%log.global.debug "Was a alive region, now is zombie"];
-           incr_zombie_regions t
-         | Zombie, Dead ->
-           [%log.global.debug "Was an zombie region, now is dead"];
-           decr_zombie_regions t
-         | Zombie, Zombie | Alive, Dead -> ()
-         | Alive, Alive | Zombie, Alive | Dead, _ ->
+         | Not_generalized, Partially_generalized ->
+           [%log.global.debug "Was a un-generalized region, now is partially generalized"];
+           incr_partially_generalized_regions t
+         | Partially_generalized, Fully_generalized ->
+           [%log.global.debug
+             "Was an partially generalized region, now is fully generalized"];
+           decr_partially_generalized_regions t
+         | Partially_generalized, Partially_generalized
+         | Not_generalized, Fully_generalized -> ()
+         | _, Not_generalized | Fully_generalized, _ ->
            (* Invalid region status transition *)
            assert false);
         (* Note: [f rn] may (somehow) visit [rn] (or a descendant of [rn]).
@@ -745,9 +755,9 @@ let update_types ~state (young_region : Young_region.t) =
 let generalize_young_region ~state (young_region : Young_region.t) =
   [%log.global.debug "Generalizing young region" (young_region : Young_region.t)];
   assert (
-    (* Cannot generalize dead regions *)
+    (* Cannot generalize fully generalized regions *)
     match young_region.region.status with
-    | Dead -> false
+    | Fully_generalized -> false
     | _ -> true);
   let young_level = young_region.node.level in
   (* Generalize the region *)
@@ -778,7 +788,8 @@ let generalize_young_region ~state (young_region : Young_region.t) =
          Type.generalize type_;
          (* Cannot generalize unresolved svar *)
          (match Type.status type_, Type.inner type_ with
-          | Generic, Var (Empty_one_or_more_handlers _) -> raise Cannot_resume_suspended_generic
+          | Generic, Var (Empty_one_or_more_handlers _) ->
+            raise Cannot_resume_suspended_generic
           | _ -> ());
          true)))
   in
@@ -839,8 +850,8 @@ let generalize_young_region ~state (young_region : Young_region.t) =
   [%log.global.debug "Updated region" (young_region.region : Type.region)];
   (* Update region status *)
   if List.is_empty partial_generics
-  then young_region.region.status <- Dead
-  else young_region.region.status <- Zombie
+  then young_region.region.status <- Fully_generalized
+  else young_region.region.status <- Partially_generalized
 ;;
 
 let update_and_generalize_young_region ~state young_region =

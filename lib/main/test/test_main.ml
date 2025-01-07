@@ -826,7 +826,7 @@ let%expect_test "" =
   type_check_and_print str;
   [%expect
     {|
-    (num_zombie_regions(num_zombie_regions 1))
+    (num_partially_generalized_regions(num_partially_generalized_regions 1))
     ("Failed to solve constraint" (err Cannot_resume_match_due_to_cycle))
     |}]
 ;;

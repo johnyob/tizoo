@@ -54,7 +54,7 @@ let%expect_test "Cannot unsuspend undetermined" =
   print_solve_result cst;
   [%expect
     {|
-    (num_zombie_regions(num_zombie_regions 1))
+    (num_partially_generalized_regions(num_partially_generalized_regions 1))
     ("Constraint is unsatisfiable"
      (cst
       (Exists ((id 0) (name Type.Var))
@@ -122,7 +122,7 @@ let%expect_test "Cannot unsuspend circular dependencies" =
   print_solve_result cst;
   [%expect
     {|
-    (num_zombie_regions(num_zombie_regions 1))
+    (num_partially_generalized_regions(num_partially_generalized_regions 1))
     ("Constraint is unsatisfiable"
      (cst
       (Exists ((id 0) (name Type.Var))

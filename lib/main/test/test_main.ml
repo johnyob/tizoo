@@ -827,7 +827,7 @@ let%expect_test "" =
   [%expect
     {|
     (num_zombie_regions(num_zombie_regions 1))
-    ("Failed to solve constraint" (err Cannot_resume_suspended_generic))
+    ("Failed to solve constraint" (err Cannot_resume_match_due_to_cycle))
     |}]
 ;;
 

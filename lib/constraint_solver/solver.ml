@@ -11,6 +11,7 @@ module Error = struct
     | Unbound_var of C.Var.t
     | Cannot_unify of Decoded_type.t * Decoded_type.t
     | Cannot_resume_suspended_generic
+    | Cannot_resume_match_due_to_cycle
   [@@deriving sexp]
 end
 
@@ -216,6 +217,9 @@ and gscheme_of_scheme ~state ~env { type_vars; in_; type_ } =
 
 let solve : C.t -> unit Or_error.t =
   fun cst ->
+  let fail err =
+    Or_error.error_s [%message "Failed to solve constraint" (err : Error.t)]
+  in
   try
     let state = State.create () in
     let env = Env.empty (G.root_region ~state) in
@@ -234,12 +238,11 @@ let solve : C.t -> unit Or_error.t =
     if num_zombie_regions > 0
     then (
       [%log.global.error "num_zombie_regions" (num_zombie_regions : int)];
-      raise (Error Cannot_resume_suspended_generic));
+      raise (Error Cannot_resume_match_due_to_cycle));
     Ok ()
   with
-  | Error err -> Or_error.error_s [%message "Failed to solve constraint" (err : Error.t)]
-  | G.Cannot_unsuspend_generic ->
-    let err = Error.Cannot_resume_suspended_generic in
-    Or_error.error_s [%message "Failed to solve constraint" (err : Error.t)]
-  | exn -> Or_error.error_s [%message "Failed to solve constraint" (exn : exn)]
+  | Error err -> fail err
+  | G.Cannot_resume_suspended_generic -> fail Error.Cannot_resume_suspended_generic
+  | exn ->
+    Or_error.error_s [%message "Unexpected error, failed to solve constraint" (exn : exn)]
 ;;

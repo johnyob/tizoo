@@ -30,6 +30,22 @@ let tstring_ident = predef_ident "string"
 let tint = T.constr [] tint_ident
 let tstring = T.constr [] tstring_ident
 
+let%expect_test "Cannot resume suspended generic" =
+  let open C in
+  let id_source = Identifier.create_source () in
+  let a1 = T.Var.create ~id_source () in
+  let cst = exists a1 @@ match_ a1 ~closure:[] ~with_:(fun _ -> tt) in
+  print_solve_result cst;
+  [%expect
+    {|
+    ("Constraint is unsatisfiable"
+     (cst
+      (Exists ((id 0) (name Type.Var))
+       (Match ((id 0) (name Type.Var)) ((type_vars ())) <fun>)))
+     (err ("Failed to solve constraint" (err Cannot_resume_suspended_generic))))
+    |}]
+;;
+
 let%expect_test "Cannot unsuspend undetermined" =
   let open C in
   let id_source = Identifier.create_source () in
@@ -44,7 +60,7 @@ let%expect_test "Cannot unsuspend undetermined" =
       (Exists ((id 0) (name Type.Var))
        (Match ((id 0) (name Type.Var)) ((type_vars (((id 0) (name Type.Var)))))
         <fun>)))
-     (err ("Failed to solve constraint" (err Cannot_resume_suspended_generic))))
+     (err ("Failed to solve constraint" (err Cannot_resume_match_due_to_cycle))))
     |}]
 ;;
 
@@ -116,7 +132,7 @@ let%expect_test "Cannot unsuspend circular dependencies" =
           <fun>)
          (Match ((id 1) (name Type.Var)) ((type_vars (((id 0) (name Type.Var)))))
           <fun>)))))
-     (err ("Failed to solve constraint" (err Cannot_resume_suspended_generic))))
+     (err ("Failed to solve constraint" (err Cannot_resume_match_due_to_cycle))))
     |}]
 ;;
 

@@ -601,7 +601,7 @@ let partial_copy ~state ~curr_region type_ =
   loop ~root:true type_
 ;;
 
-exception Cannot_unsuspend_generic
+exception Cannot_resume_suspended_generic
 
 let remove_guard ~state t guard =
   let visited = Hash_set.create (module Identifier) in
@@ -778,7 +778,7 @@ let generalize_young_region ~state (young_region : Young_region.t) =
          Type.generalize type_;
          (* Cannot generalize unresolved svar *)
          (match Type.status type_, Type.inner type_ with
-          | Generic, Var (Empty_one_or_more_handlers _) -> raise Cannot_unsuspend_generic
+          | Generic, Var (Empty_one_or_more_handlers _) -> raise Cannot_resume_suspended_generic
           | _ -> ());
          true)))
   in
